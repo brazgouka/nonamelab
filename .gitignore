@@ -1,0 +1,52 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+*.egg
+.eggs/
+dist/
+build/
+*.so
+
+# Django
+*.sqlite3
+staticfiles/
+media/
+
+# Env / secrets
+.env
+.env.local
+.env.*.local
+
+# Virtual envs
+.venv/
+venv
+env/
+
+# Node
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# Vite / frontend build
+frontend_build/
+frontend/dist/
+frontend/.vite/
+
+# Coverage
+.coverage
+htmlcov/
+coverage.xml
+*.cover
+.pytest_cache/
+
+# IDEs
+.idea/
+.vscode/
+*.iml
+
+# OS
+.DS_Store
+Thumbs.db
