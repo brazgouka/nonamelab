@@ -55,15 +55,18 @@ class Task(models.Model):
 class PeriodNote(models.Model):
     year = models.IntegerField(db_index=True)
     month = models.IntegerField(null=True, blank=True, db_index=True)
+    week = models.IntegerField(null=True, blank=True, db_index=True)
     content = models.TextField(blank=True)
     updated_at = models.DateTimeField(auto_now=True)
 
     class Meta:
         constraints = [
-            models.UniqueConstraint(fields=['year', 'month'], name='unique_period_note')
+            models.UniqueConstraint(fields=['year', 'month', 'week'], name='unique_period_note')
         ]
 
     def __str__(self):
+        if self.week:
+            return f'Note {self.year} W{self.week}'
         return f'Note {self.year}-{self.month:02d}' if self.month else f'Note {self.year}'
 
 

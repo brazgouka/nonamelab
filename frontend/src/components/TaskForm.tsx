@@ -45,7 +45,7 @@ const WEEKDAYS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun']
 
 const defaultEndDate = () => `${new Date().getFullYear()}-12-31`
 
-const inputCls = 'w-full border border-gray-200 rounded-xl px-3.5 py-2.5 text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-400 transition-colors placeholder:text-gray-400 bg-white'
+const inputCls = 'w-full border border-gray-200 dark:border-od-600 rounded-xl px-3.5 py-2.5 text-sm text-gray-900 dark:text-od-100 focus:outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-400 transition-colors placeholder:text-gray-400 dark:placeholder:text-od-400 bg-white dark:bg-od-700'
 
 export default function TaskForm({ date, task, onClose, onSaved }: Props) {
   const { data: taskTypes = [] } = useQuery({ queryKey: ['task-types'], queryFn: fetchTaskTypes })
@@ -93,12 +93,12 @@ export default function TaskForm({ date, task, onClose, onSaved }: Props) {
   return (
     <>
       <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-[60]" onClick={onClose} />
-      <div className="fixed left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-full max-w-lg bg-white rounded-2xl shadow-2xl z-[70] flex flex-col max-h-[92vh] overflow-hidden">
+      <div className="fixed left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-full max-w-lg bg-white dark:bg-od-800 rounded-2xl shadow-2xl z-[70] flex flex-col max-h-[92vh] overflow-hidden">
         {/* Header */}
-        <div className="flex items-center justify-between px-6 py-5 border-b border-gray-100">
-          <h3 className="text-base font-semibold text-gray-900">{task ? 'Edit task' : 'New task'}</h3>
+        <div className="flex items-center justify-between px-6 py-5 border-b border-gray-100 dark:border-od-600">
+          <h3 className="text-base font-semibold text-gray-900 dark:text-od-100">{task ? 'Edit task' : 'New task'}</h3>
           <button onClick={onClose}
-            className="w-8 h-8 flex items-center justify-center rounded-xl hover:bg-gray-100 text-gray-400 hover:text-gray-700 transition-colors text-xl leading-none">
+            className="w-8 h-8 flex items-center justify-center rounded-xl hover:bg-gray-100 dark:hover:bg-od-700 text-gray-400 hover:text-gray-700 dark:hover:text-od-100 transition-colors text-xl leading-none">
             ×
           </button>
         </div>
@@ -126,31 +126,31 @@ export default function TaskForm({ date, task, onClose, onSaved }: Props) {
           {/* Date + time */}
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="block text-xs font-semibold text-gray-400 mb-1.5 uppercase tracking-wide">Date</label>
+              <label className="block text-xs font-semibold text-gray-400 dark:text-od-400 mb-1.5 uppercase tracking-wide">Date</label>
               <input type="date" value={form.date} onChange={e => field('date', e.target.value)} required className={inputCls} />
             </div>
             <div>
-              <label className="block text-xs font-semibold text-gray-400 mb-1.5 uppercase tracking-wide">Time</label>
+              <label className="block text-xs font-semibold text-gray-400 dark:text-od-400 mb-1.5 uppercase tracking-wide">Time</label>
               <input type="time" value={form.time} onChange={e => field('time', e.target.value)} className={inputCls} />
             </div>
           </div>
 
           {/* Priority — optional */}
           <div>
-            <label className="block text-xs font-semibold text-gray-400 mb-2 uppercase tracking-wide">Priority</label>
+            <label className="block text-xs font-semibold text-gray-400 dark:text-od-400 mb-2 uppercase tracking-wide">Priority</label>
             <div className="grid grid-cols-4 gap-2">
               <button type="button" onClick={() => field('priority', null)}
                 className={`py-2.5 rounded-xl text-sm font-semibold border-2 transition-all ${
                   form.priority === null
-                    ? 'bg-gray-100 border-gray-300 text-gray-600'
-                    : 'border-gray-200 text-gray-300 hover:border-gray-300 hover:text-gray-500 bg-white'
+                    ? 'bg-gray-100 dark:bg-od-700 border-gray-300 dark:border-od-600 text-gray-600 dark:text-od-200'
+                    : 'border-gray-200 dark:border-od-600 text-gray-300 dark:text-od-500 hover:border-gray-300 hover:text-gray-500 bg-white dark:bg-od-700'
                 }`}>
                 None
               </button>
               {PRIORITY_OPTS.map(p => (
                 <button key={p.value} type="button" onClick={() => field('priority', p.value)}
                   className={`py-2.5 rounded-xl text-sm font-semibold border-2 transition-all flex items-center justify-center gap-1.5 ${
-                    form.priority === p.value ? p.on : 'border-gray-200 text-gray-400 hover:border-gray-300 hover:text-gray-600 bg-white'
+                    form.priority === p.value ? p.on : 'border-gray-200 dark:border-od-600 text-gray-400 dark:text-od-400 hover:border-gray-300 hover:text-gray-600 bg-white dark:bg-od-700'
                   }`}>
                   <span className={`w-2 h-2 rounded-full ${form.priority === p.value ? p.dot : 'bg-gray-200'}`} />
                   {p.label}
@@ -162,13 +162,13 @@ export default function TaskForm({ date, task, onClose, onSaved }: Props) {
           {/* Type */}
           {taskTypes.length > 0 && (
             <div>
-              <label className="block text-xs font-semibold text-gray-400 mb-2 uppercase tracking-wide">Type</label>
+              <label className="block text-xs font-semibold text-gray-400 dark:text-od-400 mb-2 uppercase tracking-wide">Type</label>
               <div className="flex flex-wrap gap-2">
                 <button type="button" onClick={() => field('task_type', null)}
                   className={`px-3.5 py-1.5 rounded-xl text-xs font-semibold border-2 transition-all ${
                     !form.task_type
-                      ? 'bg-gray-900 text-white border-gray-900'
-                      : 'border-gray-200 text-gray-400 hover:border-gray-300 hover:text-gray-600 bg-white'
+                      ? 'bg-gray-900 dark:bg-od-100 text-white dark:text-od-900 border-gray-900 dark:border-od-100'
+                      : 'border-gray-200 dark:border-od-600 text-gray-400 dark:text-od-400 hover:border-gray-300 hover:text-gray-600 bg-white dark:bg-od-700'
                   }`}>
                   None
                 </button>
@@ -190,7 +190,7 @@ export default function TaskForm({ date, task, onClose, onSaved }: Props) {
           {/* Recurrence (new tasks only) */}
           {!task && (
             <div>
-              <label className="block text-xs font-semibold text-gray-400 mb-2 uppercase tracking-wide">Repeat</label>
+              <label className="block text-xs font-semibold text-gray-400 dark:text-od-400 mb-2 uppercase tracking-wide">Repeat</label>
               <div className="grid grid-cols-5 gap-1.5">
                 {RECURRENCE_OPTS.map(r => (
                   <button key={r.value} type="button"
@@ -208,7 +208,7 @@ export default function TaskForm({ date, task, onClose, onSaved }: Props) {
                     className={`py-2 rounded-xl text-xs font-semibold border-2 transition-all ${
                       form.recurrence === r.value
                         ? 'bg-blue-600 border-blue-600 text-white shadow-sm'
-                        : 'border-gray-200 text-gray-400 hover:border-gray-300 hover:text-gray-600 bg-white'
+                        : 'border-gray-200 dark:border-od-600 text-gray-400 dark:text-od-400 hover:border-gray-300 hover:text-gray-600 bg-white dark:bg-od-700'
                     }`}>
                     {r.label}
                   </button>
@@ -227,7 +227,7 @@ export default function TaskForm({ date, task, onClose, onSaved }: Props) {
                         className={`flex-1 py-2 rounded-lg text-xs font-semibold border-2 transition-all ${
                           form.recurrence_days.includes(idx)
                             ? 'bg-blue-600 border-blue-600 text-white'
-                            : 'border-gray-200 text-gray-400 hover:border-gray-300 hover:text-gray-600 bg-white'
+                            : 'border-gray-200 dark:border-od-600 text-gray-400 dark:text-od-400 hover:border-gray-300 hover:text-gray-600 bg-white dark:bg-od-700'
                         }`}
                       >
                         {label}
@@ -237,9 +237,9 @@ export default function TaskForm({ date, task, onClose, onSaved }: Props) {
                 </div>
               )}
 
-              {form.recurrence !== 'none' && (
+              {form.recurrence !== 'none' && form.recurrence !== 'yearly' && (
                 <div className="mt-3">
-                  <label className="block text-xs font-semibold text-gray-400 mb-1.5 uppercase tracking-wide">End date</label>
+                  <label className="block text-xs font-semibold text-gray-400 dark:text-od-400 mb-1.5 uppercase tracking-wide">End date</label>
                   <input type="date" value={form.recurrence_end_date} min={form.date}
                     onChange={e => field('recurrence_end_date', e.target.value)} className={inputCls} />
                 </div>
@@ -248,16 +248,16 @@ export default function TaskForm({ date, task, onClose, onSaved }: Props) {
           )}
 
           {mutation.isError && (
-            <p className="text-red-600 text-xs bg-red-50 border border-red-100 rounded-xl px-3.5 py-2.5">
+            <p className="text-red-600 dark:text-red-400 text-xs bg-red-50 dark:bg-red-900/20 border border-red-100 dark:border-red-900/30 rounded-xl px-3.5 py-2.5">
               Failed to save. Please try again.
             </p>
           )}
         </div>
 
         {/* Footer */}
-        <div className="flex justify-end gap-2 px-6 py-4 border-t border-gray-100 bg-gray-50/50">
+        <div className="flex justify-end gap-2 px-6 py-4 border-t border-gray-100 dark:border-od-600 bg-gray-50/50 dark:bg-od-700/50">
           <button type="button" onClick={onClose}
-            className="px-4 py-2 text-sm font-medium text-gray-500 hover:text-gray-800 transition-colors rounded-xl hover:bg-gray-100">
+            className="px-4 py-2 text-sm font-medium text-gray-500 dark:text-od-400 hover:text-gray-800 dark:hover:text-od-100 transition-colors rounded-xl hover:bg-gray-100 dark:hover:bg-od-700">
             Cancel
           </button>
           <button

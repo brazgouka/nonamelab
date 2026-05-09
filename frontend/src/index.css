@@ -2,6 +2,21 @@
 @tailwind components;
 @tailwind utilities;
 
+/* ── Global theme foundation ─────────────────────────────── */
+/* Ensures body/html switch theme, not just Tailwind-classed  */
+/* elements. Fixes "only text color changes" in light mode.  */
+html {
+  background-color: #f8fafc;
+}
+html.dark {
+  background-color: #21252b;
+  color: #abb2bf;
+  color-scheme: dark;
+}
+html.dark body {
+  background-color: #21252b;
+}
+
 /* ── Tiptap / PeriodEditor ───────────────────────────────── */
 .editor-content .ProseMirror {
   outline: none;
@@ -52,7 +67,7 @@
   line-height: 1.65;
 }
 
-/* Task list — NodeView sets data-checked on li, not data-type */
+/* Task list */
 .editor-content .ProseMirror ul[data-type="taskList"] {
   list-style: none;
   padding-left: 0;
@@ -142,3 +157,32 @@
   pointer-events: none;
   height: 0;
 }
+
+/* ── Dark mode — One Dark palette ────────────────────────── */
+/* Use html.dark (higher specificity than .dark) to guarantee  */
+/* these rules beat any Tiptap/browser defaults.              */
+
+/* H1: One Dark yellow — prominent, high contrast on #282c34  */
+html.dark .editor-content .ProseMirror h1 { color: #9f9f9f; }
+/* H2: One Dark blue                                           */
+html.dark .editor-content .ProseMirror h2 { color: #6a6a6a; }
+html.dark .editor-content .ProseMirror p  { color: #abb2bf; }
+html.dark .editor-content .ProseMirror ul:not([data-type="taskList"]) { color: #abb2bf; }
+html.dark .editor-content .ProseMirror ol { color: #abb2bf; }
+html.dark .editor-content .ProseMirror strong { color: #c8cdd6; }
+html.dark .editor-content .ProseMirror blockquote {
+  color: #636d83;
+  border-left-color: #3b4048;
+}
+html.dark .editor-content .ProseMirror code {
+  background: #2c313a;
+  color: #c678dd;
+}
+html.dark .editor-content .ProseMirror ul[data-type="taskList"] > li > div { color: #abb2bf; }
+html.dark .editor-content .ProseMirror ul[data-type="taskList"] > li[data-checked="true"] > div {
+  color: #4b5263;
+}
+html.dark .editor-content .ProseMirror ul[data-type="taskList"] li > div > ul[data-type="taskList"] {
+  border-left-color: #3b4048;
+}
+html.dark .editor-content .ProseMirror p.is-editor-empty:first-child::before { color: #4b5263; }

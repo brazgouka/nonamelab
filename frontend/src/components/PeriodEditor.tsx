@@ -11,11 +11,12 @@ const MONTHS = ['January','February','March','April','May','June','July','August
 
 interface Props {
   year: number
-  month: number  // 1-based
+  month: number | null  // 1-based, null for week notes
+  week?: number | null  // ISO week number
 }
 
 function Divider() {
-  return <div className="w-px h-4 bg-gray-200 mx-0.5 flex-shrink-0" />
+  return <div className="w-px h-4 bg-gray-200 dark:bg-od-600 mx-0.5 flex-shrink-0" />
 }
 
 function TBtn({ active, title, onClick, children }: {
@@ -25,23 +26,23 @@ function TBtn({ active, title, onClick, children }: {
     <button type="button" title={title}
       onMouseDown={e => { e.preventDefault(); onClick() }}
       className={`px-2 py-1 rounded text-xs font-medium transition-colors select-none ${
-        active ? 'bg-gray-200 text-gray-900' : 'text-gray-400 hover:bg-gray-100 hover:text-gray-700'
+        active ? 'bg-gray-200 dark:bg-od-700 text-gray-900 dark:text-od-100' : 'text-gray-400 dark:text-od-400 hover:bg-gray-100 dark:hover:bg-od-700 hover:text-gray-700 dark:hover:text-od-100'
       }`}>
       {children}
     </button>
   )
 }
 
-export default function PeriodEditor({ year, month }: Props) {
+export default function PeriodEditor({ year, month, week }: Props) {
   const qc = useQueryClient()
-  const noteKey = ['period-note', year, month]
+  const noteKey = ['period-note', year, month, week ?? null]
   const [saveStatus, setSaveStatus] = useState<'idle' | 'saving' | 'saved'>('idle')
   const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const contentLoaded = useRef(false)
 
   const { data: note } = useQuery({
     queryKey: noteKey,
-    queryFn: () => fetchPeriodNote(year, month),
+    queryFn: () => fetchPeriodNote(year, month, week),
   })
 
   const editor = useEditor({
@@ -50,7 +51,9 @@ export default function PeriodEditor({ year, month }: Props) {
       TaskList,
       TaskItem.configure({ nested: true }),
       Placeholder.configure({
-        placeholder: `Write something for ${MONTHS[month - 1]} ${year}…`,
+        placeholder: week != null
+          ? `Write something for Week ${week}, ${year}…`
+          : `Write something for ${month != null ? MONTHS[month - 1] + ' ' : ''}${year}…`,
       }),
     ],
     content: '',
@@ -61,7 +64,7 @@ export default function PeriodEditor({ year, month }: Props) {
         try {
           setSaveStatus('saving')
           const content = JSON.stringify(editor.getJSON())
-          const saved = await savePeriodNote(year, month, content)
+          const saved = await savePeriodNote(year, month, content, week)
           qc.setQueryData(noteKey, saved)
           setSaveStatus('saved')
         } catch {
@@ -81,10 +84,12 @@ export default function PeriodEditor({ year, month }: Props) {
     }
   }, [editor, note])
 
+  if (!editor) return null
+
   return (
     <div className="flex flex-col h-full overflow-hidden">
       {/* Toolbar */}
-      <div className="flex items-center gap-0.5 px-4 py-2 border-b border-gray-100 flex-shrink-0 flex-wrap">
+      <div className="flex items-center gap-0.5 px-4 py-2 border-b border-gray-100 dark:border-od-600 flex-shrink-0 flex-wrap bg-white dark:bg-od-800">
         <TBtn active={editor.isActive('heading', { level: 1 })} title="Heading 1"
           onClick={() => editor.chain().focus().toggleHeading({ level: 1 }).run()}>H1</TBtn>
         <TBtn active={editor.isActive('heading', { level: 2 })} title="Heading 2"
@@ -122,7 +127,7 @@ export default function PeriodEditor({ year, month }: Props) {
       </div>
 
       {/* Editor area */}
-      <div className="flex-1 overflow-y-auto px-6 py-4 editor-content cursor-text"
+      <div className="flex-1 overflow-y-auto px-6 py-4 editor-content cursor-text bg-white dark:bg-od-800"
         onClick={() => editor.commands.focus()}>
         <EditorContent editor={editor} />
       </div>

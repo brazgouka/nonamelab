@@ -1,15 +1,18 @@
 import { apiFetch } from './client'
 import type { PeriodNote, PeriodTodo } from '../types'
 
-function periodParams(year: number, month: number | null): string {
-  return month != null ? `year=${year}&month=${month}` : `year=${year}`
+function periodParams(year: number, month: number | null, week?: number | null): string {
+  const p = new URLSearchParams({ year: String(year) })
+  if (month != null) p.set('month', String(month))
+  if (week != null) p.set('week', String(week))
+  return p.toString()
 }
 
-export const fetchPeriodNote = (year: number, month: number | null) =>
-  apiFetch<PeriodNote>(`/api/period-notes/for-period/?${periodParams(year, month)}`)
+export const fetchPeriodNote = (year: number, month: number | null, week?: number | null) =>
+  apiFetch<PeriodNote>(`/api/period-notes/for-period/?${periodParams(year, month, week)}`)
 
-export const savePeriodNote = (year: number, month: number | null, content: string) =>
-  apiFetch<PeriodNote>(`/api/period-notes/for-period/?${periodParams(year, month)}`, {
+export const savePeriodNote = (year: number, month: number | null, content: string, week?: number | null) =>
+  apiFetch<PeriodNote>(`/api/period-notes/for-period/?${periodParams(year, month, week)}`, {
     method: 'PUT',
     body: JSON.stringify({ content }),
   })

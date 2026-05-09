@@ -157,11 +157,13 @@ class PeriodNoteViewSet(viewsets.ModelViewSet):
     def for_period(self, request):
         year = request.query_params.get('year')
         month = request.query_params.get('month') or None
+        week = request.query_params.get('week') or None
         if not year:
             return Response({'detail': 'year required'}, status=status.HTTP_400_BAD_REQUEST)
         note, _ = PeriodNote.objects.get_or_create(
             year=int(year),
             month=int(month) if month else None,
+            week=int(week) if week else None,
             defaults={'content': ''},
         )
         if request.method == 'PUT':
