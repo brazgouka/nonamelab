@@ -102,7 +102,15 @@ export default function PeriodEditor({ year, month }: Props) {
         <TBtn active={editor.isActive('orderedList')} title="Numbered list"
           onClick={() => editor.chain().focus().toggleOrderedList().run()}>1. List</TBtn>
         <TBtn active={editor.isActive('taskList')} title="To-do list"
-          onClick={() => editor.chain().focus().toggleTaskList().run()}>☐ Todo</TBtn>
+          onClick={() => editor.chain().focus().toggleTaskList().run()}>
+          <span className="flex items-center gap-1">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.5} strokeLinecap="round" strokeLinejoin="round">
+              <polyline points="9 11 12 14 22 4" />
+              <path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11" />
+            </svg>
+            Todo
+          </span>
+        </TBtn>
         <div className="flex-1" />
         <span className={`text-[11px] transition-opacity duration-300 ${
           saveStatus === 'saving' ? 'text-gray-400 opacity-100'

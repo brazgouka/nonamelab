@@ -153,7 +153,7 @@ class PeriodNoteViewSet(viewsets.ModelViewSet):
             qs = qs.filter(month=month if month else None)
         return qs
 
-    @action(detail=False, methods=['get', 'put'])
+    @action(detail=False, methods=['get', 'put'], url_path='for-period')
     def for_period(self, request):
         year = request.query_params.get('year')
         month = request.query_params.get('month') or None
