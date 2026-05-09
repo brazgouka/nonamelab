@@ -96,6 +96,7 @@ class TaskViewSet(viewsets.ModelViewSet):
                 date=d,
                 time=data.get('time'),
                 priority=data.get('priority'),
+                is_reminder=data.get('is_reminder', False),
                 task_type=data.get('task_type'),
                 recurrence=recurrence,
                 recurrence_days=recurrence_days,

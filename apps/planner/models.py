@@ -32,6 +32,7 @@ class Task(models.Model):
         max_length=10, choices=Priority.choices, null=True, blank=True
     )
     completed = models.BooleanField(default=False)
+    is_reminder = models.BooleanField(default=False)
     task_type = models.ForeignKey(
         TaskType, null=True, blank=True, on_delete=models.SET_NULL, related_name='tasks'
     )

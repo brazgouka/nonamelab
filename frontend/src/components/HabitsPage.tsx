@@ -30,30 +30,30 @@ export default function HabitsPage() {
     queryFn: () => fetchTasks(startDate, endDate),
   })
 
-  const completedDates = useMemo(() => {
-    const set = new Set<string>()
-    for (const t of tasks) {
-      if (!t.completed) continue
+  // Map date → color of the first completed (non-reminder) task of selected type
+  const dateColors = useMemo(() => {
+    const map = new Map<string, string>()
+    const sorted = [...tasks].sort((a, b) => (a.task_type ?? 999999) - (b.task_type ?? 999999))
+    for (const t of sorted) {
+      if (!t.completed || t.is_reminder) continue
       if (selectedTypeId != null && t.task_type !== selectedTypeId) continue
-      set.add(t.date)
+      if (!map.has(t.date)) {
+        map.set(t.date, t.task_type_detail?.color ?? '#6366f1')
+      }
     }
-    return set
+    return map
   }, [tasks, selectedTypeId])
 
-  // Count streak going back from today.
-  // Today is counted if completed, but an incomplete today doesn't break the streak.
-  // Rest days (no task of the selected type) are skipped; 8+ consecutive rest days end the streak.
+  // Streak: today counts if completed; incomplete today doesn't break it.
+  // Rest days skipped; 8+ consecutive rest days end the streak.
   const streak = useMemo(() => {
     const todayStr = toDateStr(today)
-    const todayDone = completedDates.has(todayStr)
-
-    let n = todayDone ? 1 : 0
+    let n = dateColors.has(todayStr) ? 1 : 0
     let restRun = 0
     const d = new Date(today)
     d.setDate(d.getDate() - 1)
-
     for (let i = 0; i < 366; i++) {
-      if (completedDates.has(toDateStr(d))) {
+      if (dateColors.has(toDateStr(d))) {
         n++
         restRun = 0
       } else {
@@ -63,7 +63,7 @@ export default function HabitsPage() {
       d.setDate(d.getDate() - 1)
     }
     return n
-  }, [completedDates, today])
+  }, [dateColors, today])
 
   // Track container dimensions so the grid fills the space exactly
   useEffect(() => {
@@ -107,7 +107,7 @@ export default function HabitsPage() {
         </div>
       </div>
 
-      {/* Pixel grid */}
+      {/* Pixel grid — each square = one day, oldest top-left, today bottom-right */}
       <div ref={containerRef} className="flex-1 overflow-hidden p-3">
         {total > 0 && (
           <div
@@ -117,13 +117,23 @@ export default function HabitsPage() {
               gap: `${GAP}px`,
             }}
           >
-            {Array.from({ length: total }, (_, i) => (
-              <div
-                key={i}
-                className={i < streak ? 'bg-red-500' : 'bg-gray-200 dark:bg-od-700'}
-                style={{ width: SQUARE, height: SQUARE }}
-              />
-            ))}
+            {Array.from({ length: total }, (_, i) => {
+              const dayOffset = total - 1 - i
+              const d = new Date(today)
+              d.setDate(d.getDate() - dayOffset)
+              const color = dayOffset <= 365 ? dateColors.get(toDateStr(d)) : undefined
+              return (
+                <div
+                  key={i}
+                  style={{
+                    width: SQUARE,
+                    height: SQUARE,
+                    backgroundColor: color ?? undefined,
+                  }}
+                  className={color ? '' : 'bg-gray-200 dark:bg-od-700'}
+                />
+              )
+            })}
           </div>
         )}
       </div>

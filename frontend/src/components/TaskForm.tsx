@@ -21,6 +21,7 @@ interface FormState {
   time: string
   priority: Priority | null
   task_type: number | null
+  is_reminder: boolean
   recurrence: Recurrence
   recurrence_days: number[]
   recurrence_end_date: string
@@ -57,6 +58,7 @@ export default function TaskForm({ date, task, onClose, onSaved }: Props) {
     time: task?.time ?? '',
     priority: task?.priority ?? null,
     task_type: task?.task_type ?? null,
+    is_reminder: task?.is_reminder ?? false,
     recurrence: task?.recurrence ?? 'none',
     recurrence_days: task?.recurrence_days ?? [],
     recurrence_end_date: task?.recurrence_end_date ?? defaultEndDate(),
@@ -67,6 +69,7 @@ export default function TaskForm({ date, task, onClose, onSaved }: Props) {
       const payload = {
         ...form,
         time: form.time || null,
+        priority: form.is_reminder ? null : form.priority,
         recurrence_days: form.recurrence === 'weekly' && form.recurrence_days.length > 0
           ? form.recurrence_days
           : null,
@@ -115,6 +118,27 @@ export default function TaskForm({ date, task, onClose, onSaved }: Props) {
             className={`${inputCls} text-base font-medium`}
           />
 
+          {/* Reminder toggle */}
+          <div className="flex items-center gap-3">
+            <button
+              type="button"
+              onClick={() => field('is_reminder', !form.is_reminder)}
+              className={`flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs font-semibold border-2 transition-all ${
+                form.is_reminder
+                  ? 'bg-violet-50 dark:bg-violet-900/30 border-violet-400 text-violet-700 dark:text-violet-300'
+                  : 'border-gray-200 dark:border-od-600 text-gray-400 dark:text-od-400 bg-white dark:bg-od-700 hover:border-gray-300'
+              }`}
+            >
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
+                <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/>
+              </svg>
+              Reminder
+            </button>
+            {form.is_reminder && (
+              <span className="text-xs text-gray-400 dark:text-od-400">No completion required</span>
+            )}
+          </div>
+
           <textarea
             placeholder="Add a note…"
             value={form.description}
@@ -135,8 +159,8 @@ export default function TaskForm({ date, task, onClose, onSaved }: Props) {
             </div>
           </div>
 
-          {/* Priority — optional */}
-          <div>
+          {/* Priority — hidden for reminders */}
+          {!form.is_reminder && <div>
             <label className="block text-xs font-semibold text-gray-400 dark:text-od-400 mb-2 uppercase tracking-wide">Priority</label>
             <div className="grid grid-cols-4 gap-2">
               <button type="button" onClick={() => field('priority', null)}
@@ -157,7 +181,7 @@ export default function TaskForm({ date, task, onClose, onSaved }: Props) {
                 </button>
               ))}
             </div>
-          </div>
+          </div>}
 
           {/* Type */}
           {taskTypes.length > 0 && (
@@ -265,7 +289,7 @@ export default function TaskForm({ date, task, onClose, onSaved }: Props) {
             disabled={mutation.isPending || !form.title.trim()}
             className="px-6 py-2 bg-blue-600 text-white rounded-xl text-sm font-semibold hover:bg-blue-700 active:bg-blue-800 disabled:opacity-50 transition-colors shadow-sm"
           >
-            {mutation.isPending ? 'Saving…' : task ? 'Save changes' : 'Create task'}
+            {mutation.isPending ? 'Saving…' : task ? 'Save changes' : form.is_reminder ? 'Create reminder' : 'Create task'}
           </button>
         </div>
       </div>

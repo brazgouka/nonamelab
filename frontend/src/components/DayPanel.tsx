@@ -40,8 +40,9 @@ export default function DayPanel({ date, onClose }: Props) {
   function openEdit(task: Task) { setEditingTask(task); setShowForm(true) }
   function closeForm() { setShowForm(false); setEditingTask(null) }
 
-  const open = tasks.filter(t => !t.completed)
-  const done = tasks.filter(t => t.completed)
+  const reminders = tasks.filter(t => t.is_reminder)
+  const open = tasks.filter(t => !t.completed && !t.is_reminder)
+  const done = tasks.filter(t => t.completed && !t.is_reminder)
 
   return (
     <>
@@ -55,7 +56,7 @@ export default function DayPanel({ date, onClose }: Props) {
               <p className="text-xs text-gray-400 dark:text-od-400 mt-0.5">
                 {tasks.length === 0
                   ? 'No tasks'
-                  : `${open.length} open${done.length > 0 ? ` · ${done.length} done` : ''}`}
+                  : [open.length > 0 && `${open.length} open`, done.length > 0 && `${done.length} done`, reminders.length > 0 && `${reminders.length} reminder${reminders.length > 1 ? 's' : ''}`].filter(Boolean).join(' · ')}
               </p>
             </div>
             <button onClick={onClose}
@@ -80,6 +81,20 @@ export default function DayPanel({ date, onClose }: Props) {
             </div>
           ) : (
             <div className="space-y-2">
+              {reminders.length > 0 && (
+                <>
+                  <p className="text-[11px] font-semibold text-violet-400 dark:text-violet-500 uppercase tracking-widest pb-1 pl-1">
+                    Reminders
+                  </p>
+                  {reminders.map(task => (
+                    <TaskCard key={task.id} task={task}
+                      onToggle={() => {}}
+                      onEdit={() => openEdit(task)}
+                      onDelete={() => setPendingDelete(task)}
+                    />
+                  ))}
+                </>
+              )}
               {open.map(task => (
                 <TaskCard key={task.id} task={task}
                   onToggle={() => toggleMutation.mutate(task.id)}

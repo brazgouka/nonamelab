@@ -12,6 +12,7 @@ export interface Task {
   time: string | null
   priority: 'low' | 'medium' | 'high' | null
   completed: boolean
+  is_reminder: boolean
   task_type: number | null
   task_type_detail: TaskType | null
   recurrence: 'none' | 'daily' | 'weekly' | 'monthly' | 'yearly'
