@@ -12,7 +12,7 @@ interface Props {
 }
 
 type Priority = 'low' | 'medium' | 'high'
-type Recurrence = 'none' | 'daily' | 'weekly' | 'monthly'
+type Recurrence = 'none' | 'daily' | 'weekly' | 'monthly' | 'yearly'
 
 interface FormState {
   title: string
@@ -37,6 +37,7 @@ const RECURRENCE_OPTS = [
   { value: 'daily'   as Recurrence, label: 'Daily' },
   { value: 'weekly'  as Recurrence, label: 'Weekly' },
   { value: 'monthly' as Recurrence, label: 'Monthly' },
+  { value: 'yearly'  as Recurrence, label: 'Yearly' },
 ]
 
 // 0 = Monday … 6 = Sunday (Python weekday() convention)
@@ -190,9 +191,20 @@ export default function TaskForm({ date, task, onClose, onSaved }: Props) {
           {!task && (
             <div>
               <label className="block text-xs font-semibold text-gray-400 mb-2 uppercase tracking-wide">Repeat</label>
-              <div className="grid grid-cols-4 gap-1.5">
+              <div className="grid grid-cols-5 gap-1.5">
                 {RECURRENCE_OPTS.map(r => (
-                  <button key={r.value} type="button" onClick={() => field('recurrence', r.value)}
+                  <button key={r.value} type="button"
+                    onClick={() => {
+                      if (r.value === 'yearly') {
+                        const base = new Date(form.date || new Date())
+                        const y = base.getFullYear() + 100
+                        const mm = String(base.getMonth() + 1).padStart(2, '0')
+                        const dd = String(base.getDate()).padStart(2, '0')
+                        setForm(f => ({ ...f, recurrence: 'yearly', recurrence_end_date: `${y}-${mm}-${dd}` }))
+                      } else {
+                        field('recurrence', r.value)
+                      }
+                    }}
                     className={`py-2 rounded-xl text-xs font-semibold border-2 transition-all ${
                       form.recurrence === r.value
                         ? 'bg-blue-600 border-blue-600 text-white shadow-sm'
@@ -206,9 +218,6 @@ export default function TaskForm({ date, task, onClose, onSaved }: Props) {
               {/* Day-of-week picker for weekly */}
               {form.recurrence === 'weekly' && (
                 <div className="mt-3">
-                  <label className="block text-xs font-semibold text-gray-400 mb-2 uppercase tracking-wide">
-                    Days <span className="normal-case font-normal text-gray-300">(empty = same weekday as start)</span>
-                  </label>
                   <div className="flex gap-1.5">
                     {WEEKDAYS.map((label, idx) => (
                       <button

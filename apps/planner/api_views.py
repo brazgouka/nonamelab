@@ -11,6 +11,7 @@ from .serializers import TaskSerializer, TaskTypeSerializer, PeriodNoteSerialize
 
 
 def _next_date(current: date, recurrence: str) -> date:
+    import calendar as cal
     if recurrence == Task.Recurrence.DAILY:
         return current + timedelta(days=1)
     if recurrence == Task.Recurrence.WEEKLY:
@@ -19,27 +20,36 @@ def _next_date(current: date, recurrence: str) -> date:
         month = current.month + 1
         year = current.year + (month - 1) // 12
         month = ((month - 1) % 12) + 1
-        import calendar
-        day = min(current.day, calendar.monthrange(year, month)[1])
+        day = min(current.day, cal.monthrange(year, month)[1])
         return date(year, month, day)
+    if recurrence == Task.Recurrence.YEARLY:
+        year = current.year + 1
+        day = min(current.day, cal.monthrange(year, current.month)[1])
+        return date(year, current.month, day)
     return current
 
 
 def _generate_recurrence_dates(
     start: date, recurrence: str, end_date: date | None, recurrence_days: list | None = None
 ) -> list[date]:
-    limit = end_date or date(start.year, 12, 31)
+    if recurrence == Task.Recurrence.YEARLY:
+        limit = end_date or date(start.year + 100, start.month, start.day)
+        max_count = 101
+    else:
+        limit = end_date or date(start.year, 12, 31)
+        max_count = 730
+
     dates = []
 
     if recurrence == Task.Recurrence.WEEKLY and recurrence_days:
         current = start
-        while current <= limit and len(dates) < 730:
+        while current <= limit and len(dates) < max_count:
             if current.weekday() in recurrence_days:
                 dates.append(current)
             current += timedelta(days=1)
     else:
         current = start
-        while current <= limit and len(dates) < 365:
+        while current <= limit and len(dates) < max_count:
             dates.append(current)
             current = _next_date(current, recurrence)
 

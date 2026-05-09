@@ -22,6 +22,7 @@ class Task(models.Model):
         DAILY = 'daily', 'Daily'
         WEEKLY = 'weekly', 'Weekly'
         MONTHLY = 'monthly', 'Monthly'
+        YEARLY = 'yearly', 'Yearly'
 
     title = models.CharField(max_length=200)
     description = models.TextField(blank=True)

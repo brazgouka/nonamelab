@@ -14,7 +14,7 @@ export interface Task {
   completed: boolean
   task_type: number | null
   task_type_detail: TaskType | null
-  recurrence: 'none' | 'daily' | 'weekly' | 'monthly'
+  recurrence: 'none' | 'daily' | 'weekly' | 'monthly' | 'yearly'
   recurrence_days: number[] | null
   recurrence_end_date: string | null
   series_id: string | null
