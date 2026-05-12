@@ -43,11 +43,12 @@ class Task(models.Model):
     )
     recurrence_end_date = models.DateField(null=True, blank=True)
     recurrence_days = models.JSONField(null=True, blank=True)
+    order = models.PositiveIntegerField(default=0, db_index=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
     class Meta:
-        ordering = ['date', 'time', 'priority', 'title']
+        ordering = ['date', 'order', 'time', 'priority', 'title']
 
     def __str__(self):
         return f'{self.title} ({self.date})'
@@ -84,3 +85,16 @@ class PeriodTodo(models.Model):
 
     def __str__(self):
         return self.title
+
+
+class Note(models.Model):
+    title = models.CharField(max_length=200, blank=True)
+    content = models.TextField(blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ['-updated_at']
+
+    def __str__(self):
+        return self.title or f'Note {self.id}'

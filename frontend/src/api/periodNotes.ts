@@ -31,3 +31,9 @@ export const togglePeriodTodo = (id: number) =>
 
 export const deletePeriodTodo = (id: number) =>
   apiFetch<void>(`/api/period-todos/${id}/`, { method: 'DELETE' })
+
+export const reorderPeriodTodos = (ids: number[]) =>
+  apiFetch<void>('/api/period-todos/reorder/', {
+    method: 'POST',
+    body: JSON.stringify({ ids }),
+  })

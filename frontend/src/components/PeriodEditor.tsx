@@ -9,6 +9,7 @@ import { fetchPeriodNote, savePeriodNote } from '../api/periodNotes'
 
 const MONTHS = ['January','February','March','April','May','June','July','August','September','October','November','December']
 
+
 interface Props {
   year: number
   month: number | null  // 1-based, null for week notes
@@ -38,7 +39,7 @@ export default function PeriodEditor({ year, month, week }: Props) {
   const noteKey = ['period-note', year, month, week ?? null]
   const [saveStatus, setSaveStatus] = useState<'idle' | 'saving' | 'saved'>('idle')
   const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
-  const contentLoaded = useRef(false)
+  const lastSeenUpdatedAt = useRef<string | null>(null)
 
   const { data: note } = useQuery({
     queryKey: noteKey,
@@ -49,7 +50,7 @@ export default function PeriodEditor({ year, month, week }: Props) {
     extensions: [
       StarterKit,
       TaskList,
-      TaskItem.configure({ nested: true }),
+      TaskItem.extend({ draggable: true }).configure({ nested: true }),
       Placeholder.configure({
         placeholder: week != null
           ? `Write something for Week ${week}, ${year}…`
@@ -75,8 +76,12 @@ export default function PeriodEditor({ year, month, week }: Props) {
   })
 
   useEffect(() => {
-    if (!editor || note === undefined || contentLoaded.current) return
-    contentLoaded.current = true
+    if (!editor || note === undefined) return
+    if (note.updated_at === lastSeenUpdatedAt.current) return
+    // Skip if editor already has this content (own autosave returning)
+    const editorJson = JSON.stringify(editor.getJSON())
+    if (editorJson === note.content) { lastSeenUpdatedAt.current = note.updated_at; return }
+    lastSeenUpdatedAt.current = note.updated_at
     try {
       editor.commands.setContent(note.content ? JSON.parse(note.content) : '', { emitUpdate: false })
     } catch {

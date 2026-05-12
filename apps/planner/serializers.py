@@ -1,5 +1,5 @@
 from rest_framework import serializers
-from .models import Task, TaskType, PeriodNote, PeriodTodo
+from .models import Task, TaskType, PeriodNote, PeriodTodo, Note
 
 
 class TaskTypeSerializer(serializers.ModelSerializer):
@@ -34,3 +34,10 @@ class PeriodTodoSerializer(serializers.ModelSerializer):
         model = PeriodTodo
         fields = ['id', 'year', 'month', 'title', 'completed', 'order', 'created_at']
         read_only_fields = ['created_at']
+
+
+class NoteSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Note
+        fields = ['id', 'title', 'content', 'created_at', 'updated_at']
+        read_only_fields = ['created_at', 'updated_at']

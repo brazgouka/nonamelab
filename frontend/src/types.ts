@@ -19,6 +19,7 @@ export interface Task {
   recurrence_days: number[] | null
   recurrence_end_date: string | null
   series_id: string | null
+  order: number
   created_at: string
   updated_at: string
 }
@@ -41,4 +42,12 @@ export interface PeriodTodo {
   completed: boolean
   order: number
   created_at: string
+}
+
+export interface Note {
+  id: number
+  title: string
+  content: string
+  created_at: string
+  updated_at: string
 }

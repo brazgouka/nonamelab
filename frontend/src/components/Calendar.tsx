@@ -1,6 +1,7 @@
 import { useState, useMemo, useRef } from 'react'
-import { useQuery } from '@tanstack/react-query'
-import { fetchTasks } from '../api/tasks'
+import { useQuery, useQueryClient } from '@tanstack/react-query'
+import { fetchTasks, toggleTask, reorderTasks } from '../api/tasks'
+import { fetchPeriodNote, savePeriodNote } from '../api/periodNotes'
 import type { Task } from '../types'
 import PeriodEditor from './PeriodEditor'
 
@@ -33,6 +34,21 @@ function isoWeek(d: Date): { week: number; year: number } {
   return { week, year: day.getUTCFullYear() }
 }
 
+function dateToStr(d: Date): string {
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
+}
+
+function isoWeekMonday(year: number, week: number): Date {
+  const jan4 = new Date(year, 0, 4)
+  const jan4dow = jan4.getDay() || 7
+  const monday = new Date(jan4)
+  monday.setDate(jan4.getDate() - (jan4dow - 1) + (week - 1) * 7)
+  monday.setHours(0, 0, 0, 0)
+  return monday
+}
+
+const DAY_NAMES = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun']
+
 export default function Calendar({ onSelectDate, filterTypeId }: Props) {
   const today = new Date()
   const [year, setYear] = useState(today.getFullYear())
@@ -50,6 +66,70 @@ export default function Calendar({ onSelectDate, filterTypeId }: Props) {
   const daysInMonth = new Date(year, month + 1, 0).getDate()
   const startDate = toDateStr(year, month, 1)
   const endDate = toDateStr(year, month, daysInMonth)
+
+  const qc = useQueryClient()
+  const [moving, setMoving] = useState(false)
+  const [dragKey, setDragKey] = useState<{ date: string; idx: number } | null>(null)
+  const [dropKey, setDropKey] = useState<{ date: string; insertPos: number } | null>(null)
+
+  const weekMonday = weekNote ? isoWeekMonday(weekNote.year, weekNote.week) : null
+  const weekSunday = weekMonday ? new Date(weekMonday.getTime() + 6 * 86400000) : null
+  const weekMondayStr = weekMonday ? dateToStr(weekMonday) : ''
+  const weekSundayStr = weekSunday ? dateToStr(weekSunday) : ''
+
+  const { data: weekTasks = [] } = useQuery({
+    queryKey: ['tasks', weekMondayStr, weekSundayStr],
+    queryFn: () => fetchTasks(weekMondayStr, weekSundayStr),
+    enabled: weekNote != null,
+  })
+
+  async function handleToggle(task: Task) {
+    qc.setQueryData<Task[]>(['tasks', weekMondayStr, weekSundayStr], old =>
+      old?.map(t => t.id === task.id ? { ...t, completed: !t.completed } : t) ?? old
+    )
+    await toggleTask(task.id)
+    qc.invalidateQueries({ queryKey: ['tasks'] })
+  }
+
+  async function handleMoveToNextWeek() {
+    if (!weekNote || moving) return
+    setMoving(true)
+    try {
+      const current = await fetchPeriodNote(weekNote.year, null, weekNote.week)
+      const nextMon = new Date(isoWeekMonday(weekNote.year, weekNote.week).getTime() + 7 * 86400000)
+      const next = isoWeek(nextMon)
+      await savePeriodNote(next.year, null, current.content, next.week)
+      qc.invalidateQueries({ queryKey: ['period-note', next.year, null, next.week] })
+    } finally {
+      setMoving(false)
+    }
+  }
+
+  function handleDrop(date: string) {
+    if (!dragKey || !dropKey || dragKey.date !== date) {
+      setDragKey(null); setDropKey(null); return
+    }
+    const dateTasks = (weekTasksByDate[date] || []).filter(t => !t.is_reminder)
+    const reordered = [...dateTasks]
+    const [moved] = reordered.splice(dragKey.idx, 1)
+    const insertPos = dropKey.insertPos > dragKey.idx ? dropKey.insertPos - 1 : dropKey.insertPos
+    reordered.splice(Math.min(insertPos, reordered.length), 0, moved)
+    const ids = reordered.map(t => t.id)
+    qc.setQueryData<Task[]>(['tasks', weekMondayStr, weekSundayStr], old => {
+      if (!old) return old
+      const byId = new Map(reordered.map((t, i) => [t.id, { ...t, order: i }]))
+      return old.map(t => byId.get(t.id) ?? t)
+    })
+    reorderTasks(ids)
+    qc.invalidateQueries({ queryKey: ['tasks'] })
+    setDragKey(null); setDropKey(null)
+  }
+
+  const weekTasksByDate: Record<string, Task[]> = {}
+  for (const t of weekTasks) {
+    if (!weekTasksByDate[t.date]) weekTasksByDate[t.date] = []
+    weekTasksByDate[t.date].push(t)
+  }
 
   const { data: allTasks = [] } = useQuery({
     queryKey: ['tasks', startDate, endDate],
@@ -128,13 +208,27 @@ export default function Calendar({ onSelectDate, filterTypeId }: Props) {
         <div className="flex-1" />
 
         {weekNote && (
-          <button onClick={() => setWeekNote(null)}
-            className="mr-2 px-2.5 py-1.5 rounded-xl text-xs font-semibold text-blue-500 dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/30 transition-colors flex items-center gap-1">
-            <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.5} strokeLinecap="round" strokeLinejoin="round">
-              <polyline points="15 18 9 12 15 6" />
-            </svg>
-            W{weekNote.week}
-          </button>
+          <div className="mr-2 flex items-center gap-1">
+            <button
+              onClick={() => {
+                const mon = isoWeekMonday(weekNote.year, weekNote.week)
+                setWeekNote(isoWeek(new Date(mon.getTime() - 7 * 86400000)))
+              }}
+              className="w-7 h-7 flex items-center justify-center rounded-xl hover:bg-gray-100 dark:hover:bg-od-700 text-gray-400 hover:text-gray-700 dark:hover:text-od-100 transition-colors text-lg font-light leading-none">‹</button>
+            <span className="text-xs font-semibold text-gray-700 dark:text-od-200 min-w-[3rem] text-center">W{weekNote.week}</span>
+            <button
+              onClick={() => {
+                const mon = isoWeekMonday(weekNote.year, weekNote.week)
+                setWeekNote(isoWeek(new Date(mon.getTime() + 7 * 86400000)))
+              }}
+              className="w-7 h-7 flex items-center justify-center rounded-xl hover:bg-gray-100 dark:hover:bg-od-700 text-gray-400 hover:text-gray-700 dark:hover:text-od-100 transition-colors text-lg font-light leading-none">›</button>
+            <button
+              onClick={handleMoveToNextWeek}
+              disabled={moving}
+              className="ml-1 text-[11px] font-medium text-gray-400 dark:text-od-400 hover:text-blue-500 dark:hover:text-blue-400 border border-gray-200 dark:border-od-500 rounded-md px-2 py-0.5 transition-colors disabled:opacity-40"
+              title="Copy notes to next week"
+            >{moving ? '…' : '→ Next week'}</button>
+          </div>
         )}
 
         <div className="flex bg-gray-100 dark:bg-od-700 rounded-xl p-0.5">
@@ -152,7 +246,78 @@ export default function Calendar({ onSelectDate, filterTypeId }: Props) {
       </div>
 
       {weekNote ? (
-        <PeriodEditor key={`week-${weekNote.year}-${weekNote.week}`} year={weekNote.year} month={null} week={weekNote.week} />
+        <div className="flex flex-1 overflow-hidden">
+          <div className="w-1/2 overflow-hidden">
+            <PeriodEditor key={`week-${weekNote.year}-${weekNote.week}`} year={weekNote.year} month={null} week={weekNote.week} />
+          </div>
+          <div className="w-1/2 flex-shrink-0 border-l border-gray-100 dark:border-od-600 overflow-y-auto bg-gray-50/50 dark:bg-od-800/50">
+            {DAY_NAMES.map((name, i) => {
+              const dayDate = new Date(weekMonday!.getTime() + i * 86400000)
+              const dateKey = dateToStr(dayDate)
+              const dayTasks = weekTasksByDate[dateKey] || []
+              const reminders = dayTasks.filter(t => t.is_reminder)
+              const regularTasks = dayTasks.filter(t => !t.is_reminder)
+              return (
+                <div key={i}>
+                  {i > 0 && <div className="border-t border-gray-100 dark:border-od-700 mx-4" />}
+                  <div className="px-4 py-2.5">
+                    <div className="flex items-baseline gap-1.5 mb-1.5">
+                      <span className="text-[11px] font-semibold text-gray-500 dark:text-od-300 uppercase tracking-wide">{name}</span>
+                      <span className="text-[11px] text-gray-400 dark:text-od-500">{dayDate.getDate()}</span>
+                    </div>
+                    {reminders.map(t => (
+                      <div key={t.id} className="flex items-center gap-2 py-0.5">
+                        <svg className="w-3.5 h-3.5 text-violet-400 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 17H9m6-10.5A3 3 0 0 0 9 6.5C9 10.5 7 12 7 12h10s-2-1.5-2-5.5m1.73 5.5C16.88 12.43 17 12 17 11.5M9.27 17a2 2 0 0 0 3.46 0" />
+                        </svg>
+                        <span className="text-[12px] text-violet-500 dark:text-violet-400 truncate">{t.title}</span>
+                      </div>
+                    ))}
+                    {regularTasks.flatMap((t, ti) => [
+                      dropKey?.date === dateKey && dropKey.insertPos === ti
+                        ? <div key={`ind-${ti}`} className="h-0.5 mx-2 rounded bg-blue-400 dark:bg-blue-500 my-0.5" />
+                        : null,
+                      <div
+                        key={t.id}
+                        draggable
+                        onDragStart={() => setDragKey({ date: dateKey, idx: ti })}
+                        onDragOver={e => {
+                          e.preventDefault()
+                          const r = (e.currentTarget as HTMLElement).getBoundingClientRect()
+                          setDropKey({ date: dateKey, insertPos: e.clientY < r.top + r.height / 2 ? ti : ti + 1 })
+                        }}
+                        onDrop={() => handleDrop(dateKey)}
+                        onDragEnd={() => { setDragKey(null); setDropKey(null) }}
+                        className="flex items-center gap-2 py-0.5 group/task rounded"
+                      >
+                        <svg className="w-2.5 h-2.5 text-gray-300 dark:text-od-600 cursor-grab flex-shrink-0 opacity-0 group-hover/task:opacity-100 transition-opacity" viewBox="0 0 10 16" fill="currentColor">
+                          <circle cx="2" cy="2" r="1.5"/><circle cx="8" cy="2" r="1.5"/>
+                          <circle cx="2" cy="8" r="1.5"/><circle cx="8" cy="8" r="1.5"/>
+                          <circle cx="2" cy="14" r="1.5"/><circle cx="8" cy="14" r="1.5"/>
+                        </svg>
+                        <button onClick={() => handleToggle(t)} className="flex items-center gap-2 flex-1 text-left min-w-0">
+                          <div className={`w-3 h-3 rounded-full border flex-shrink-0 transition-colors ${
+                            t.completed
+                              ? 'bg-gray-300 border-gray-300 dark:bg-od-500 dark:border-od-500'
+                              : 'border-gray-300 dark:border-od-500 group-hover/task:border-gray-400 dark:group-hover/task:border-od-400'
+                          }`} />
+                          <span className={`text-[12px] truncate ${
+                            t.completed
+                              ? 'line-through text-gray-300 dark:text-od-600'
+                              : 'text-gray-600 dark:text-od-300 group-hover/task:text-gray-800 dark:group-hover/task:text-od-100'
+                          }`}>{t.title}</span>
+                        </button>
+                      </div>,
+                    ])}
+                    {dropKey?.date === dateKey && dropKey.insertPos === regularTasks.length && (
+                      <div className="h-0.5 mx-2 rounded bg-blue-400 dark:bg-blue-500 my-0.5" />
+                    )}
+                  </div>
+                </div>
+              )
+            })}
+          </div>
+        </div>
       ) : view === 'calendar' ? (
         /*
          * Single CSS grid — all rows share the same column tracks, so

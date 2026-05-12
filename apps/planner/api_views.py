@@ -6,8 +6,8 @@ from rest_framework import viewsets, status
 from rest_framework.decorators import action
 from rest_framework.response import Response
 
-from .models import Task, TaskType, PeriodNote, PeriodTodo
-from .serializers import TaskSerializer, TaskTypeSerializer, PeriodNoteSerializer, PeriodTodoSerializer
+from .models import Task, TaskType, PeriodNote, PeriodTodo, Note
+from .serializers import TaskSerializer, TaskTypeSerializer, PeriodNoteSerializer, PeriodTodoSerializer, NoteSerializer
 
 
 def _next_date(current: date, recurrence: str) -> date:
@@ -111,6 +111,30 @@ class TaskViewSet(viewsets.ModelViewSet):
             status=status.HTTP_201_CREATED,
         )
 
+    def update(self, request, *args, **kwargs):
+        task = self.get_object()
+        scope = request.query_params.get('scope', 'instance')
+        partial = kwargs.pop('partial', False)
+        serializer = self.get_serializer(task, data=request.data, partial=partial)
+        serializer.is_valid(raise_exception=True)
+        data = serializer.validated_data
+
+        if scope == 'instance' or not task.series_id:
+            serializer.save()
+            return Response(serializer.data)
+
+        bulk_fields = {
+            k: v for k, v in data.items()
+            if k not in ('date', 'completed', 'series_id', 'recurrence', 'recurrence_days', 'recurrence_end_date')
+        }
+        qs = Task.objects.filter(series_id=task.series_id, deleted_at__isnull=True)
+        if scope == 'future':
+            qs = qs.filter(date__gte=task.date)
+        if bulk_fields:
+            qs.update(**bulk_fields)
+        task.refresh_from_db()
+        return Response(TaskSerializer(task).data)
+
     def destroy(self, request, *args, **kwargs):
         task = self.get_object()
         scope = request.query_params.get('scope', 'instance')
@@ -139,6 +163,12 @@ class TaskViewSet(viewsets.ModelViewSet):
         task.completed = not task.completed
         task.save(update_fields=['completed'])
         return Response(TaskSerializer(task).data)
+
+    @action(detail=False, methods=['post'])
+    def reorder(self, request):
+        for order, pk in enumerate(request.data.get('ids', [])):
+            Task.objects.filter(pk=pk).update(order=order)
+        return Response(status=status.HTTP_204_NO_CONTENT)
 
 
 class PeriodNoteViewSet(viewsets.ModelViewSet):
@@ -192,3 +222,14 @@ class PeriodTodoViewSet(viewsets.ModelViewSet):
         todo.completed = not todo.completed
         todo.save(update_fields=['completed'])
         return Response(PeriodTodoSerializer(todo).data)
+
+    @action(detail=False, methods=['post'])
+    def reorder(self, request):
+        for order, pk in enumerate(request.data.get('ids', [])):
+            PeriodTodo.objects.filter(pk=pk).update(order=order)
+        return Response(status=status.HTTP_204_NO_CONTENT)
+
+
+class NoteViewSet(viewsets.ModelViewSet):
+    queryset = Note.objects.all()
+    serializer_class = NoteSerializer

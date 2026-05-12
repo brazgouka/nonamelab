@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { useMutation, useQuery } from '@tanstack/react-query'
 import { createTask, updateTask } from '../api/tasks'
 import { fetchTaskTypes } from '../api/taskTypes'
-import type { Task } from '../types'
+import type { Task, DeleteScope } from '../types'
 
 interface Props {
   date: string
@@ -51,6 +51,8 @@ const inputCls = 'w-full border border-gray-200 dark:border-od-600 rounded-xl px
 export default function TaskForm({ date, task, onClose, onSaved }: Props) {
   const { data: taskTypes = [] } = useQuery({ queryKey: ['task-types'], queryFn: fetchTaskTypes })
 
+  const [editScope, setEditScope] = useState<DeleteScope>('instance')
+
   const [form, setForm] = useState<FormState>({
     title: task?.title ?? '',
     description: task?.description ?? '',
@@ -75,7 +77,7 @@ export default function TaskForm({ date, task, onClose, onSaved }: Props) {
           : null,
         recurrence_end_date: form.recurrence_end_date || null,
       }
-      return task ? updateTask(task.id, payload) : createTask(payload)
+      return task ? updateTask(task.id, payload, task.series_id ? editScope : undefined) : createTask(payload)
     },
     onSuccess: onSaved,
   })
@@ -277,6 +279,26 @@ export default function TaskForm({ date, task, onClose, onSaved }: Props) {
             </p>
           )}
         </div>
+
+        {/* Scope picker for recurring task edits */}
+        {task?.series_id && (
+          <div className="px-6 py-3 border-t border-gray-100 dark:border-od-600 bg-gray-50/30 dark:bg-od-700/30">
+            <p className="text-[11px] font-semibold text-gray-400 dark:text-od-400 uppercase tracking-wide mb-2">Edit recurring event</p>
+            <div className="space-y-1.5">
+              {(['instance', 'future', 'all'] as DeleteScope[]).map(s => (
+                <label key={s} className="flex items-center gap-2.5 cursor-pointer">
+                  <input type="radio" name="editScope" value={s} checked={editScope === s}
+                    onChange={() => setEditScope(s)} className="text-blue-600" />
+                  <span className="text-sm text-gray-700 dark:text-od-200">
+                    {s === 'instance' && 'This event only'}
+                    {s === 'future' && 'This and all following events'}
+                    {s === 'all' && 'All events in the series'}
+                  </span>
+                </label>
+              ))}
+            </div>
+          </div>
+        )}
 
         {/* Footer */}
         <div className="flex justify-end gap-2 px-6 py-4 border-t border-gray-100 dark:border-od-600 bg-gray-50/50 dark:bg-od-700/50">

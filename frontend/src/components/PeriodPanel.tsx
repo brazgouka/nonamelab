@@ -2,7 +2,7 @@ import { useState, useEffect, useRef } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import {
   fetchPeriodNote, savePeriodNote,
-  fetchPeriodTodos, createPeriodTodo, togglePeriodTodo, deletePeriodTodo,
+  fetchPeriodTodos, createPeriodTodo, togglePeriodTodo, deletePeriodTodo, reorderPeriodTodos,
 } from '../api/periodNotes'
 
 const MONTHS = ['January','February','March','April','May','June','July','August','September','October','November','December']
@@ -23,6 +23,8 @@ export default function PeriodPanel({ year, month: initialMonth, onClose }: Prop
   const [noteText, setNoteText] = useState('')
   const [saveStatus, setSaveStatus] = useState<'idle' | 'saving' | 'saved'>('idle')
   const [newTodo, setNewTodo] = useState('')
+  const [dragIdx, setDragIdx] = useState<number | null>(null)
+  const [dropIdx, setDropIdx] = useState<number | null>(null)
   const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   const noteKey = ['period-note', year, activeMonth]
@@ -131,8 +133,32 @@ export default function PeriodPanel({ year, month: initialMonth, onClose }: Prop
             )}
 
             <div className="space-y-0.5">
-              {open.map(todo => (
-                <div key={todo.id} className="group flex items-center gap-2.5 px-2 py-2.5 rounded-xl hover:bg-gray-50 transition-colors">
+              {open.map((todo, i) => (
+                <div
+                  key={todo.id}
+                  draggable
+                  onDragStart={() => setDragIdx(i)}
+                  onDragOver={e => { e.preventDefault(); setDropIdx(i) }}
+                  onDrop={() => {
+                    if (dragIdx === null || dragIdx === i) { setDragIdx(null); setDropIdx(null); return }
+                    const reordered = [...open]
+                    const [moved] = reordered.splice(dragIdx, 1)
+                    reordered.splice(i, 0, moved)
+                    const ids = [...reordered.map(t => t.id), ...done.map(t => t.id)]
+                    qc.setQueryData(todoKey, [...reordered, ...done])
+                    reorderPeriodTodos(ids)
+                    setDragIdx(null); setDropIdx(null)
+                  }}
+                  onDragEnd={() => { setDragIdx(null); setDropIdx(null) }}
+                  className={`group flex items-center gap-2.5 px-2 py-2.5 rounded-xl transition-colors ${
+                    dropIdx === i ? 'bg-blue-50' : 'hover:bg-gray-50'
+                  }`}
+                >
+                  <svg className="w-3 h-3 text-gray-300 cursor-grab flex-shrink-0 opacity-0 group-hover:opacity-100" viewBox="0 0 10 16" fill="currentColor">
+                    <circle cx="2" cy="2" r="1.5"/><circle cx="8" cy="2" r="1.5"/>
+                    <circle cx="2" cy="8" r="1.5"/><circle cx="8" cy="8" r="1.5"/>
+                    <circle cx="2" cy="14" r="1.5"/><circle cx="8" cy="14" r="1.5"/>
+                  </svg>
                   <button onClick={() => toggleTodo.mutate(todo.id)}
                     className="w-[18px] h-[18px] rounded-[5px] border-2 flex-shrink-0 border-gray-300 hover:border-blue-400 bg-white transition-all" />
                   <span className="flex-1 text-sm text-gray-800">{todo.title}</span>

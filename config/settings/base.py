@@ -18,6 +18,14 @@ INSTALLED_APPS = [
     'django.contrib.staticfiles',
     'rest_framework',
     'apps.planner',
+    'apps.telegram_bot',
+]
+
+TELEGRAM_BOT_TOKEN = config('TELEGRAM_BOT_TOKEN', default='')
+TELEGRAM_ALLOWED_USER_IDS = [
+    int(uid)
+    for uid in config('TELEGRAM_ALLOWED_USER_IDS', default='').split(',')
+    if uid.strip()
 ]
 
 MIDDLEWARE = [

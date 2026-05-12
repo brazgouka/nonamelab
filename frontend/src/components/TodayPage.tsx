@@ -1,10 +1,24 @@
-import { useState } from 'react'
+import { useState, useMemo } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { fetchTasks, deleteTask, toggleTask } from '../api/tasks'
 import type { Task, DeleteScope } from '../types'
 import TaskCard from './TaskCard'
 import TaskForm from './TaskForm'
 import DeleteModal from './DeleteModal'
+import PeriodSection from './PeriodSection'
+
+const MONTHS = ['January','February','March','April','May','June','July','August','September','October','November','December']
+
+function isoWeekInfo(d: Date): { week: number; year: number } {
+  const tmp = new Date(d)
+  tmp.setHours(0, 0, 0, 0)
+  tmp.setDate(tmp.getDate() + 3 - (tmp.getDay() + 6) % 7)
+  const jan4 = new Date(tmp.getFullYear(), 0, 4)
+  return {
+    week: 1 + Math.round(((tmp.getTime() - jan4.getTime()) / 86400000 - 3 + (jan4.getDay() + 6) % 7) / 7),
+    year: tmp.getFullYear(),
+  }
+}
 
 function dateStr(d: Date): string {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
@@ -25,6 +39,9 @@ function addDays(ds: string, n: number): string {
 export default function TodayPage() {
   const todayDate = dateStr(new Date())
   const [viewDate, setViewDate] = useState(todayDate)
+  const { week: isoWeek, year: isoYear } = useMemo(() => isoWeekInfo(new Date()), [])
+  const calYear = new Date().getFullYear()
+  const calMonth = new Date().getMonth() + 1
   const isToday = viewDate === todayDate
 
   const qc = useQueryClient()
@@ -55,7 +72,8 @@ export default function TodayPage() {
   const done = tasks.filter(t => t.completed && !t.is_reminder)
 
   return (
-    <div className="max-w-2xl mx-auto px-6 py-8 dark:text-od-100">
+    <div className="dark:text-od-100">
+    <div className="max-w-2xl mx-auto px-6 py-8">
       {/* Header */}
       <div className="mb-8">
         <div className="flex items-center gap-2 mb-1 h-5">
@@ -162,18 +180,35 @@ export default function TodayPage() {
         </button>
       </div>
 
-      {showForm && (
-        <TaskForm date={viewDate} task={editingTask ?? undefined} onClose={closeForm}
-          onSaved={() => { qc.invalidateQueries({ queryKey: ['tasks'] }); closeForm() }}
-        />
-      )}
+    </div>
 
-      {pendingDelete && (
-        <DeleteModal task={pendingDelete} onClose={() => setPendingDelete(null)}
-          onConfirm={scope => deleteMutation.mutate({ id: pendingDelete.id, scope })}
-          isLoading={deleteMutation.isPending}
-        />
-      )}
+    {/* Weekly and monthly notes — full width for more space */}
+    <div className="px-6 pb-10 space-y-4">
+      <PeriodSection
+        label={`Week ${isoWeek}`}
+        year={isoYear}
+        month={null}
+        week={isoWeek}
+      />
+      <PeriodSection
+        label={`${MONTHS[calMonth - 1]} ${calYear}`}
+        year={calYear}
+        month={calMonth}
+      />
+    </div>
+
+    {showForm && (
+      <TaskForm date={viewDate} task={editingTask ?? undefined} onClose={closeForm}
+        onSaved={() => { qc.invalidateQueries({ queryKey: ['tasks'] }); closeForm() }}
+      />
+    )}
+
+    {pendingDelete && (
+      <DeleteModal task={pendingDelete} onClose={() => setPendingDelete(null)}
+        onConfirm={scope => deleteMutation.mutate({ id: pendingDelete.id, scope })}
+        isLoading={deleteMutation.isPending}
+      />
+    )}
     </div>
   )
 }

@@ -5,11 +5,12 @@ import DayPanel from './components/DayPanel'
 import TaskTypeManager from './components/TaskTypeManager'
 import TodayPage from './components/TodayPage'
 import HabitsPage from './components/HabitsPage'
+import NotesPage from './components/NotesPage'
 import { fetchTaskTypes } from './api/taskTypes'
 
 const queryClient = new QueryClient()
 
-type Page = 'calendar' | 'today' | 'habits'
+type Page = 'calendar' | 'today' | 'habits' | 'notes'
 
 function AppInner() {
   const [page, setPage] = useState<Page>('today')
@@ -34,7 +35,7 @@ function AppInner() {
       {/* Header */}
       <header className="bg-white dark:bg-od-800 border-b border-gray-200 dark:border-od-600 px-6 py-0 flex items-stretch justify-between flex-shrink-0">
         <nav className="flex items-stretch gap-1">
-          {(['today', 'calendar', 'habits'] as Page[]).map(tab => (
+          {(['today', 'calendar', 'habits', 'notes'] as Page[]).map(tab => (
             <button key={tab} onClick={() => setPage(tab)}
               className={`px-4 py-4 text-sm font-semibold border-b-2 capitalize transition-colors ${
                 page === tab
@@ -66,6 +67,10 @@ function AppInner() {
       {page === 'today' ? (
         <div className="flex-1 overflow-y-auto">
           <TodayPage />
+        </div>
+      ) : page === 'notes' ? (
+        <div className="flex-1 overflow-hidden">
+          <NotesPage />
         </div>
       ) : page === 'habits' ? (
         <div className="flex-1 overflow-hidden">

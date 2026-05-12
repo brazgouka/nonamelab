@@ -80,6 +80,11 @@ html.dark body {
   gap: 0.5rem;
   padding: 0.1rem 0;
   list-style: none;
+  cursor: grab;
+}
+
+.editor-content .ProseMirror ul[data-type="taskList"] > li > div {
+  cursor: text;
 }
 
 .editor-content .ProseMirror ul[data-type="taskList"] > li > label {
