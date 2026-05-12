@@ -1,5 +1,6 @@
 import { useState, useMemo, useRef } from 'react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
+import { useSearchParams } from 'react-router-dom'
 import { fetchTasks, toggleTask, reorderTasks } from '../api/tasks'
 import { fetchPeriodNote, savePeriodNote } from '../api/periodNotes'
 import type { Task } from '../types'
@@ -12,16 +13,15 @@ interface Props {
 
 type View = 'calendar' | 'notes'
 
-// Monday-first
 const DAYS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun']
 const MONTHS = ['January','February','March','April','May','June','July','August','September','October','November','December']
 const MONTHS_SHORT = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec']
+const DAY_NAMES = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun']
 
 function toDateStr(year: number, month: number, day: number): string {
   return `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`
 }
 
-// 0 = Monday … 6 = Sunday
 function mondayDow(d: Date): number {
   return (d.getDay() + 6) % 7
 }
@@ -47,21 +47,33 @@ function isoWeekMonday(year: number, week: number): Date {
   return monday
 }
 
-const DAY_NAMES = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun']
-
 export default function Calendar({ onSelectDate, filterTypeId }: Props) {
   const today = new Date()
-  const [year, setYear] = useState(today.getFullYear())
-  const [month, setMonth] = useState(today.getMonth())
-  const [view, setView] = useState<View>('calendar')
-  const [weekNote, setWeekNote] = useState<{ week: number; year: number } | null>(null)
+  const [searchParams, setSearchParams] = useSearchParams()
+
+  const year = searchParams.get('year') ? parseInt(searchParams.get('year')!) : today.getFullYear()
+  const month = searchParams.get('month') ? parseInt(searchParams.get('month')!) - 1 : today.getMonth()
+  const view: View = searchParams.get('view') === 'notes' ? 'notes' : 'calendar'
+  const weekNote = searchParams.get('week')
+    ? { week: parseInt(searchParams.get('week')!), year: parseInt(searchParams.get('weekYear') || String(today.getFullYear())) }
+    : null
+
   const [showMonthPicker, setShowMonthPicker] = useState(false)
   const [showYearPicker, setShowYearPicker] = useState(false)
-  const [yearRangeStart, setYearRangeStart] = useState(() => Math.floor(today.getFullYear() / 12) * 12)
+  const [yearRangeStart, setYearRangeStart] = useState(() => Math.floor(year / 12) * 12)
   const monthBtnRef = useRef<HTMLButtonElement>(null)
   const yearBtnRef = useRef<HTMLButtonElement>(null)
   const [monthPickerPos, setMonthPickerPos] = useState({ top: 0, left: 0 })
   const [yearPickerPos, setYearPickerPos] = useState({ top: 0, left: 0 })
+
+  function navigateToMonth(y: number, m: number) {
+    const params: Record<string, string> = { year: String(y), month: String(m + 1) }
+    if (searchParams.get('view') === 'notes') params.view = 'notes'
+    setSearchParams(params)
+  }
+
+  const prevMonth = () => month === 0 ? navigateToMonth(year - 1, 11) : navigateToMonth(year, month - 1)
+  const nextMonth = () => month === 11 ? navigateToMonth(year + 1, 0) : navigateToMonth(year, month + 1)
 
   const daysInMonth = new Date(year, month + 1, 0).getDate()
   const startDate = toDateStr(year, month, 1)
@@ -134,7 +146,7 @@ export default function Calendar({ onSelectDate, filterTypeId }: Props) {
   const { data: allTasks = [] } = useQuery({
     queryKey: ['tasks', startDate, endDate],
     queryFn: () => fetchTasks(startDate, endDate),
-    enabled: view === 'calendar',
+    enabled: view === 'calendar' && !weekNote,
   })
 
   const tasks = useMemo(
@@ -151,12 +163,10 @@ export default function Calendar({ onSelectDate, filterTypeId }: Props) {
     return map
   }, [tasks])
 
-  // Monday-first: blank cells before day 1
   const firstDow = mondayDow(new Date(year, month, 1))
   const days = Array.from({ length: daysInMonth }, (_, i) => i + 1)
   const todayStr = toDateStr(today.getFullYear(), today.getMonth(), today.getDate())
 
-  // Build rows of exactly 7 cells (null = blank)
   const rows: (number | null)[][] = []
   let row: (number | null)[] = Array.from({ length: firstDow }, () => null)
   for (const day of days) {
@@ -167,9 +177,6 @@ export default function Calendar({ onSelectDate, filterTypeId }: Props) {
     while (row.length < 7) row.push(null)
     rows.push(row)
   }
-
-  const prevMonth = () => { if (month === 0) { setYear(y => y - 1); setMonth(11) } else setMonth(m => m - 1) }
-  const nextMonth = () => { if (month === 11) { setYear(y => y + 1); setMonth(0) } else setMonth(m => m + 1) }
 
   function openMonthPicker() {
     if (monthBtnRef.current) {
@@ -190,7 +197,6 @@ export default function Calendar({ onSelectDate, filterTypeId }: Props) {
 
   return (
     <div className="h-full flex flex-col bg-white dark:bg-od-800 rounded-2xl shadow-sm border border-gray-200 dark:border-od-600 overflow-hidden">
-      {/* Header */}
       <div className="flex items-center gap-1 px-4 py-3.5 border-b border-gray-100 dark:border-od-600 flex-shrink-0">
         <button onClick={prevMonth}
           className="w-8 h-8 flex items-center justify-center rounded-xl hover:bg-gray-100 dark:hover:bg-od-700 text-gray-400 hover:text-gray-700 dark:hover:text-od-100 transition-colors text-xl font-light leading-none flex-shrink-0">‹</button>
@@ -212,14 +218,16 @@ export default function Calendar({ onSelectDate, filterTypeId }: Props) {
             <button
               onClick={() => {
                 const mon = isoWeekMonday(weekNote.year, weekNote.week)
-                setWeekNote(isoWeek(new Date(mon.getTime() - 7 * 86400000)))
+                const prev = isoWeek(new Date(mon.getTime() - 7 * 86400000))
+                setSearchParams(p => ({ ...Object.fromEntries(p.entries()), weekYear: String(prev.year), week: String(prev.week) }))
               }}
               className="w-7 h-7 flex items-center justify-center rounded-xl hover:bg-gray-100 dark:hover:bg-od-700 text-gray-400 hover:text-gray-700 dark:hover:text-od-100 transition-colors text-lg font-light leading-none">‹</button>
             <span className="text-xs font-semibold text-gray-700 dark:text-od-200 min-w-[3rem] text-center">W{weekNote.week}</span>
             <button
               onClick={() => {
                 const mon = isoWeekMonday(weekNote.year, weekNote.week)
-                setWeekNote(isoWeek(new Date(mon.getTime() + 7 * 86400000)))
+                const next = isoWeek(new Date(mon.getTime() + 7 * 86400000))
+                setSearchParams(p => ({ ...Object.fromEntries(p.entries()), weekYear: String(next.year), week: String(next.week) }))
               }}
               className="w-7 h-7 flex items-center justify-center rounded-xl hover:bg-gray-100 dark:hover:bg-od-700 text-gray-400 hover:text-gray-700 dark:hover:text-od-100 transition-colors text-lg font-light leading-none">›</button>
             <button
@@ -233,7 +241,11 @@ export default function Calendar({ onSelectDate, filterTypeId }: Props) {
 
         <div className="flex bg-gray-100 dark:bg-od-700 rounded-xl p-0.5">
           {(['calendar', 'notes'] as View[]).map(v => (
-            <button key={v} onClick={() => { setView(v); setWeekNote(null) }}
+            <button key={v} onClick={() => {
+              const params: Record<string, string> = { year: String(year), month: String(month + 1) }
+              if (v === 'notes') params.view = 'notes'
+              setSearchParams(params)
+            }}
               className={`px-3 py-1.5 rounded-[10px] text-xs font-semibold transition-all ${
                 view === v && !weekNote
                   ? 'bg-white dark:bg-od-700 text-gray-900 dark:text-od-100 shadow-sm'
@@ -319,11 +331,6 @@ export default function Calendar({ onSelectDate, filterTypeId }: Props) {
           </div>
         </div>
       ) : view === 'calendar' ? (
-        /*
-         * Single CSS grid — all rows share the same column tracks, so
-         * day labels and day cells are guaranteed to align pixel-perfectly.
-         * gridTemplateColumns: week-icon column + 7 equal day columns
-         */
         <div
           className="flex-1 overflow-hidden grid"
           style={{
@@ -331,7 +338,6 @@ export default function Calendar({ onSelectDate, filterTypeId }: Props) {
             gridTemplateRows: `2rem repeat(${rows.length}, 1fr)`,
           }}
         >
-          {/* Header row: spacer + 7 day-name labels */}
           <div className="border-b border-r border-gray-100 dark:border-od-600 bg-gray-50/60 dark:bg-od-700/40" />
           {DAYS.map((d, i) => (
             <div key={d}
@@ -340,7 +346,6 @@ export default function Calendar({ onSelectDate, filterTypeId }: Props) {
             </div>
           ))}
 
-          {/* Data rows: flatMap emits 8 grid cells per week row */}
           {rows.flatMap((rowDays, ri) => {
             const isLastRow = ri === rows.length - 1
             const bB = isLastRow ? '' : ' border-b border-gray-100 dark:border-od-600'
@@ -348,12 +353,10 @@ export default function Calendar({ onSelectDate, filterTypeId }: Props) {
             const weekInfo = firstReal != null ? isoWeek(new Date(year, month, firstReal)) : null
 
             return [
-              // Week-note icon cell — full cell is the click target
-              <div key={`wi${ri}`}
-                className={`border-r border-gray-100 dark:border-od-600${bB} flex`}>
+              <div key={`wi${ri}`} className={`border-r border-gray-100 dark:border-od-600${bB} flex`}>
                 {weekInfo && (
                   <button
-                    onClick={() => setWeekNote(weekInfo)}
+                    onClick={() => setSearchParams({ year: String(year), month: String(month + 1), week: String(weekInfo.week), weekYear: String(weekInfo.year) })}
                     title={`Notes for W${weekInfo.week}`}
                     className="flex-1 flex items-center justify-center hover:bg-blue-50 dark:hover:bg-blue-900/30 text-gray-300 dark:text-od-500 hover:text-blue-400 transition-colors"
                   >
@@ -364,13 +367,9 @@ export default function Calendar({ onSelectDate, filterTypeId }: Props) {
                 )}
               </div>,
 
-              // 7 day cells
               ...rowDays.map((day, ci) => {
                 const bR = ci < 6 ? ' border-r border-gray-100 dark:border-od-600' : ''
-
-                if (day == null) {
-                  return <div key={`b${ri}-${ci}`} className={`bg-gray-50/30 dark:bg-od-700/20${bR}${bB}`} />
-                }
+                if (day == null) return <div key={`b${ri}-${ci}`} className={`bg-gray-50/30 dark:bg-od-700/20${bR}${bB}`} />
 
                 const ds = toDateStr(year, month, day)
                 const dayTasks = tasksByDate[ds] || []
@@ -378,7 +377,7 @@ export default function Calendar({ onSelectDate, filterTypeId }: Props) {
                 const done = dayTasks.filter(t => t.completed)
                 const isToday = ds === todayStr
                 const dow = mondayDow(new Date(ds + 'T00:00:00'))
-                const isWeekend = dow >= 5 // Sat=5, Sun=6
+                const isWeekend = dow >= 5
 
                 return (
                   <div key={day} onClick={() => onSelectDate(ds)}
@@ -405,7 +404,6 @@ export default function Calendar({ onSelectDate, filterTypeId }: Props) {
                         </span>
                       )}
                     </div>
-
                     <div className="space-y-0.5">
                       {open.slice(0, 3).map(task => {
                         const c = task.task_type_detail?.color ?? '#6366f1'
@@ -438,7 +436,6 @@ export default function Calendar({ onSelectDate, filterTypeId }: Props) {
         <PeriodEditor key={`${year}-${month}`} year={year} month={month + 1} />
       )}
 
-      {/* Fixed month picker */}
       {showMonthPicker && (
         <>
           <div className="fixed inset-0 z-10" onClick={() => setShowMonthPicker(false)} />
@@ -446,7 +443,10 @@ export default function Calendar({ onSelectDate, filterTypeId }: Props) {
             style={{ top: monthPickerPos.top, left: monthPickerPos.left }}>
             <div className="grid grid-cols-3 gap-1">
               {MONTHS_SHORT.map((m, i) => (
-                <button key={i} onClick={() => { setMonth(i); setShowMonthPicker(false) }}
+                <button key={i} onClick={() => {
+                  setSearchParams({ year: String(year), month: String(i + 1), ...(searchParams.get('view') === 'notes' ? { view: 'notes' } : {}) })
+                  setShowMonthPicker(false)
+                }}
                   className={`py-2.5 rounded-xl text-sm font-semibold transition-all ${
                     i === month ? 'bg-blue-600 text-white shadow-sm' : 'text-gray-600 dark:text-od-200 hover:bg-gray-100 dark:hover:bg-od-700'
                   }`}>
@@ -458,7 +458,6 @@ export default function Calendar({ onSelectDate, filterTypeId }: Props) {
         </>
       )}
 
-      {/* Fixed year picker */}
       {showYearPicker && (
         <>
           <div className="fixed inset-0 z-10" onClick={() => setShowYearPicker(false)} />
@@ -473,7 +472,10 @@ export default function Calendar({ onSelectDate, filterTypeId }: Props) {
             </div>
             <div className="grid grid-cols-3 gap-1">
               {Array.from({ length: 12 }, (_, i) => yearRangeStart + i).map(y => (
-                <button key={y} onClick={() => { setYear(y); setShowYearPicker(false) }}
+                <button key={y} onClick={() => {
+                  setSearchParams({ year: String(y), month: String(month + 1), ...(searchParams.get('view') === 'notes' ? { view: 'notes' } : {}) })
+                  setShowYearPicker(false)
+                }}
                   className={`py-2.5 rounded-xl text-sm font-semibold transition-all ${
                     y === year ? 'bg-blue-600 text-white shadow-sm' : 'text-gray-600 dark:text-od-200 hover:bg-gray-100 dark:hover:bg-od-700'
                   }`}>

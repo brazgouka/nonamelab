@@ -1,5 +1,6 @@
 import { useState, useMemo } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
+import { useSearchParams } from 'react-router-dom'
 import { fetchTasks, deleteTask, toggleTask } from '../api/tasks'
 import type { Task, DeleteScope } from '../types'
 import TaskCard from './TaskCard'
@@ -38,7 +39,8 @@ function addDays(ds: string, n: number): string {
 
 export default function TodayPage() {
   const todayDate = dateStr(new Date())
-  const [viewDate, setViewDate] = useState(todayDate)
+  const [searchParams, setSearchParams] = useSearchParams()
+  const viewDate = searchParams.get('date') || todayDate
   const { week: isoWeek, year: isoYear } = useMemo(() => isoWeekInfo(new Date()), [])
   const calYear = new Date().getFullYear()
   const calMonth = new Date().getMonth() + 1
@@ -64,6 +66,11 @@ export default function TodayPage() {
     onSuccess: () => qc.invalidateQueries({ queryKey: ['tasks'] }),
   })
 
+  function navigateTo(date: string) {
+    if (date === todayDate) setSearchParams({})
+    else setSearchParams({ date })
+  }
+
   function openEdit(task: Task) { setEditingTask(task); setShowForm(true) }
   function closeForm() { setShowForm(false); setEditingTask(null) }
 
@@ -74,7 +81,6 @@ export default function TodayPage() {
   return (
     <div className="dark:text-od-100">
     <div className="max-w-2xl mx-auto px-6 py-8">
-      {/* Header */}
       <div className="mb-8">
         <div className="flex items-center gap-2 mb-1 h-5">
           <span className={`w-2.5 h-2.5 rounded-full flex-shrink-0 ${isToday ? 'bg-blue-500' : 'bg-gray-400'}`} />
@@ -82,7 +88,7 @@ export default function TodayPage() {
             {isToday ? 'Today' : viewDate === addDays(todayDate, -1) ? 'Yesterday' : viewDate === addDays(todayDate, 1) ? 'Tomorrow' : 'Viewing'}
           </p>
           <button
-            onClick={() => setViewDate(todayDate)}
+            onClick={() => navigateTo(todayDate)}
             className={`ml-1 px-2 py-0.5 text-[11px] font-semibold bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 rounded-full hover:bg-blue-100 dark:hover:bg-blue-900/50 transition-colors ${isToday ? 'invisible' : ''}`}
           >
             Jump to today
@@ -91,18 +97,14 @@ export default function TodayPage() {
 
         <div className="flex items-center gap-3">
           <button
-            onClick={() => setViewDate(d => addDays(d, -1))}
+            onClick={() => navigateTo(addDays(viewDate, -1))}
             className="w-8 h-8 flex items-center justify-center rounded-xl hover:bg-gray-100 dark:hover:bg-od-700 text-gray-400 hover:text-gray-700 dark:hover:text-od-100 transition-colors text-xl font-light leading-none flex-shrink-0"
-          >
-            ‹
-          </button>
+          >‹</button>
           <h1 className="text-2xl font-bold text-gray-900 dark:text-od-100 flex-1">{formatDate(viewDate)}</h1>
           <button
-            onClick={() => setViewDate(d => addDays(d, 1))}
+            onClick={() => navigateTo(addDays(viewDate, 1))}
             className="w-8 h-8 flex items-center justify-center rounded-xl hover:bg-gray-100 dark:hover:bg-od-700 text-gray-400 hover:text-gray-700 dark:hover:text-od-100 transition-colors text-xl font-light leading-none flex-shrink-0"
-          >
-            ›
-          </button>
+          >›</button>
         </div>
 
         <p className="text-sm text-gray-400 dark:text-od-400 mt-1 pl-11 h-5">
@@ -112,7 +114,6 @@ export default function TodayPage() {
         </p>
       </div>
 
-      {/* Task list */}
       {isLoading ? (
         <div className="space-y-2">
           {[1, 2, 3].map(i => (
@@ -134,15 +135,9 @@ export default function TodayPage() {
         <div className="space-y-2">
           {reminders.length > 0 && (
             <>
-              <p className="text-[11px] font-semibold text-violet-400 dark:text-violet-500 uppercase tracking-widest pb-1 pl-1">
-                Reminders
-              </p>
+              <p className="text-[11px] font-semibold text-violet-400 dark:text-violet-500 uppercase tracking-widest pb-1 pl-1">Reminders</p>
               {reminders.map(task => (
-                <TaskCard key={task.id} task={task}
-                  onToggle={() => {}}
-                  onEdit={() => openEdit(task)}
-                  onDelete={() => setPendingDelete(task)}
-                />
+                <TaskCard key={task.id} task={task} onToggle={() => {}} onEdit={() => openEdit(task)} onDelete={() => setPendingDelete(task)} />
               ))}
             </>
           )}
@@ -155,9 +150,7 @@ export default function TodayPage() {
           ))}
           {done.length > 0 && (
             <>
-              <p className="text-[11px] font-semibold text-gray-300 dark:text-od-500 uppercase tracking-widest pt-6 pb-1 pl-1">
-                Completed
-              </p>
+              <p className="text-[11px] font-semibold text-gray-300 dark:text-od-500 uppercase tracking-widest pt-6 pb-1 pl-1">Completed</p>
               {done.map(task => (
                 <TaskCard key={task.id} task={task}
                   onToggle={() => toggleMutation.mutate(task.id)}
@@ -170,7 +163,6 @@ export default function TodayPage() {
         </div>
       )}
 
-      {/* Add task button */}
       <div className="mt-6">
         <button
           onClick={() => { setEditingTask(null); setShowForm(true) }}
@@ -179,22 +171,11 @@ export default function TodayPage() {
           <span className="text-lg leading-none">+</span> Add task
         </button>
       </div>
-
     </div>
 
-    {/* Weekly and monthly notes — full width for more space */}
     <div className="px-6 pb-10 space-y-4">
-      <PeriodSection
-        label={`Week ${isoWeek}`}
-        year={isoYear}
-        month={null}
-        week={isoWeek}
-      />
-      <PeriodSection
-        label={`${MONTHS[calMonth - 1]} ${calYear}`}
-        year={calYear}
-        month={calMonth}
-      />
+      <PeriodSection label={`Week ${isoWeek}`} year={isoYear} month={null} week={isoWeek} />
+      <PeriodSection label={`${MONTHS[calMonth - 1]} ${calYear}`} year={calYear} month={calMonth} />
     </div>
 
     {showForm && (
@@ -202,7 +183,6 @@ export default function TodayPage() {
         onSaved={() => { qc.invalidateQueries({ queryKey: ['tasks'] }); closeForm() }}
       />
     )}
-
     {pendingDelete && (
       <DeleteModal task={pendingDelete} onClose={() => setPendingDelete(null)}
         onConfirm={scope => deleteMutation.mutate({ id: pendingDelete.id, scope })}

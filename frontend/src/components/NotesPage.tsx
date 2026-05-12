@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
+import { useSearchParams } from 'react-router-dom'
 import { useEditor, EditorContent } from '@tiptap/react'
 import StarterKit from '@tiptap/starter-kit'
 import TaskList from '@tiptap/extension-task-list'
@@ -78,8 +79,7 @@ function EditorPane({ note, onSaved, onDelete }: EditorPaneProps) {
     ],
     content: '',
     onUpdate: ({ editor }) => {
-      const content = JSON.stringify(editor.getJSON())
-      scheduleSave({ content })
+      scheduleSave({ content: JSON.stringify(editor.getJSON()) })
     },
   })
 
@@ -97,7 +97,6 @@ function EditorPane({ note, onSaved, onDelete }: EditorPaneProps) {
 
   return (
     <div className="flex flex-col h-full overflow-hidden">
-      {/* Title row */}
       <div className="flex items-center gap-3 px-6 pt-6 pb-3 flex-shrink-0">
         <input
           value={title}
@@ -116,13 +115,9 @@ function EditorPane({ note, onSaved, onDelete }: EditorPaneProps) {
           <div className="flex items-center gap-2 flex-shrink-0">
             <span className="text-xs text-gray-500 dark:text-od-400">Delete note?</span>
             <button onClick={onDelete}
-              className="px-2.5 py-1 bg-red-500 text-white rounded-lg text-xs font-semibold hover:bg-red-600 transition-colors">
-              Delete
-            </button>
+              className="px-2.5 py-1 bg-red-500 text-white rounded-lg text-xs font-semibold hover:bg-red-600 transition-colors">Delete</button>
             <button onClick={() => setConfirmDelete(false)}
-              className="px-2.5 py-1 bg-gray-100 dark:bg-od-700 text-gray-600 dark:text-od-300 rounded-lg text-xs font-semibold hover:bg-gray-200 dark:hover:bg-od-600 transition-colors">
-              Cancel
-            </button>
+              className="px-2.5 py-1 bg-gray-100 dark:bg-od-700 text-gray-600 dark:text-od-300 rounded-lg text-xs font-semibold hover:bg-gray-200 dark:hover:bg-od-600 transition-colors">Cancel</button>
           </div>
         ) : (
           <button onClick={() => setConfirmDelete(true)}
@@ -138,7 +133,6 @@ function EditorPane({ note, onSaved, onDelete }: EditorPaneProps) {
         )}
       </div>
 
-      {/* Toolbar */}
       <div className="flex items-center gap-0.5 px-4 py-2 border-y border-gray-100 dark:border-od-700 flex-shrink-0 flex-wrap bg-white dark:bg-od-800">
         <TBtn active={editor.isActive('heading', { level: 1 })} title="Heading 1"
           onClick={() => editor.chain().focus().toggleHeading({ level: 1 }).run()}>H1</TBtn>
@@ -168,7 +162,6 @@ function EditorPane({ note, onSaved, onDelete }: EditorPaneProps) {
         </TBtn>
       </div>
 
-      {/* Editor area */}
       <div className="flex-1 overflow-y-auto px-6 py-4 editor-content cursor-text bg-white dark:bg-od-800"
         onClick={() => editor.commands.focus()}>
         <EditorContent editor={editor} />
@@ -179,18 +172,16 @@ function EditorPane({ note, onSaved, onDelete }: EditorPaneProps) {
 
 export default function NotesPage() {
   const qc = useQueryClient()
-  const [selectedId, setSelectedId] = useState<number | null>(null)
+  const [searchParams, setSearchParams] = useSearchParams()
+  const selectedId = searchParams.get('id') ? parseInt(searchParams.get('id')!) : null
 
-  const { data: notes = [] } = useQuery({
-    queryKey: ['notes'],
-    queryFn: fetchNotes,
-  })
+  const { data: notes = [] } = useQuery({ queryKey: ['notes'], queryFn: fetchNotes })
 
   const createMutation = useMutation({
     mutationFn: createNote,
     onSuccess: (note) => {
       qc.invalidateQueries({ queryKey: ['notes'] })
-      setSelectedId(note.id)
+      setSearchParams({ id: String(note.id) })
     },
   })
 
@@ -198,7 +189,7 @@ export default function NotesPage() {
     mutationFn: (id: number) => deleteNote(id),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['notes'] })
-      setSelectedId(null)
+      setSearchParams({})
     },
   })
 
@@ -214,7 +205,6 @@ export default function NotesPage() {
 
   return (
     <div className="flex h-full overflow-hidden">
-      {/* Left sidebar */}
       <div className="w-64 flex-shrink-0 bg-gray-50 dark:bg-od-800 border-r border-gray-200 dark:border-od-600 flex flex-col overflow-hidden">
         <div className="flex items-center justify-between px-4 py-4 flex-shrink-0 border-b border-gray-100 dark:border-od-700">
           <h2 className="text-sm font-bold text-gray-900 dark:text-od-100">Notes</h2>
@@ -233,7 +223,7 @@ export default function NotesPage() {
           {notes.map(note => (
             <button
               key={note.id}
-              onClick={() => setSelectedId(note.id)}
+              onClick={() => setSearchParams({ id: String(note.id) })}
               className={`w-full text-left px-4 py-3 transition-colors border-b border-gray-100 dark:border-od-700/50 ${
                 selectedId === note.id
                   ? 'bg-blue-50 dark:bg-blue-900/20 border-l-2 border-l-blue-500'
@@ -251,7 +241,6 @@ export default function NotesPage() {
         </div>
       </div>
 
-      {/* Right pane */}
       <div className="flex-1 overflow-hidden bg-white dark:bg-od-800">
         {selectedNote ? (
           <EditorPane
