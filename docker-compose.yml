@@ -38,5 +38,24 @@ services:
       db:
         condition: service_healthy
 
+  bot:
+    build: .
+    restart: unless-stopped
+    command: python manage.py runbot
+    environment:
+      DJANGO_SETTINGS_MODULE: config.settings.production
+      SECRET_KEY: ${SECRET_KEY}
+      APP_PASSWORD: ${APP_PASSWORD}
+      DB_NAME: ${DB_NAME:-homelab}
+      DB_USER: ${DB_USER:-homelab}
+      DB_PASSWORD: ${DB_PASSWORD}
+      DB_HOST: db
+      DB_PORT: 5432
+      TELEGRAM_BOT_TOKEN: ${TELEGRAM_BOT_TOKEN}
+      TELEGRAM_ALLOWED_USER_IDS: ${TELEGRAM_ALLOWED_USER_IDS}
+    depends_on:
+      db:
+        condition: service_healthy
+
 volumes:
   postgres_data:
