@@ -7,13 +7,16 @@ import TaskTypeManager from './components/TaskTypeManager'
 import TodayPage from './components/TodayPage'
 import HabitsPage from './components/HabitsPage'
 import NotesPage from './components/NotesPage'
+import LoginPage from './components/LoginPage'
 import { fetchTaskTypes } from './api/taskTypes'
+import { getMe, logout } from './api/auth'
+import { onUnauthorized } from './api/client'
 
 const queryClient = new QueryClient()
 
 const NAV_TABS = ['today', 'calendar', 'habits', 'notes'] as const
 
-function AppInner() {
+function AppInner({ onLogout }: { onLogout: () => void }) {
   const [selectedDate, setSelectedDate] = useState<string | null>(null)
   const [showTypeManager, setShowTypeManager] = useState(false)
   const [filterTypeId, setFilterTypeId] = useState<number | null>(null)
@@ -43,8 +46,9 @@ function AppInner() {
             </NavLink>
           ))}
         </nav>
+        <div className="flex items-center gap-1 my-2">
         <button onClick={() => setIsDark(d => !d)}
-          className="w-9 h-9 flex items-center justify-center rounded-xl text-gray-400 hover:text-gray-700 dark:hover:text-od-100 hover:bg-gray-100 dark:hover:bg-od-700 transition-colors my-2"
+          className="w-9 h-9 flex items-center justify-center rounded-xl text-gray-400 hover:text-gray-700 dark:hover:text-od-100 hover:bg-gray-100 dark:hover:bg-od-700 transition-colors"
           title={isDark ? 'Switch to light mode' : 'Switch to dark mode'}>
           {isDark ? (
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
@@ -59,6 +63,16 @@ function AppInner() {
             </svg>
           )}
         </button>
+        <button onClick={onLogout}
+          className="w-9 h-9 flex items-center justify-center rounded-xl text-gray-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors"
+          title="Sign out">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
+            <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/>
+            <polyline points="16 17 21 12 16 7"/>
+            <line x1="21" y1="12" x2="9" y2="12"/>
+          </svg>
+        </button>
+        </div>
       </header>
 
       <Routes>
@@ -137,9 +151,32 @@ function AppInner() {
 }
 
 export default function App() {
+  const [authed, setAuthed] = useState<boolean | null>(null)
+
+  useEffect(() => {
+    onUnauthorized(() => setAuthed(false))
+    getMe().then(() => setAuthed(true)).catch(() => setAuthed(false))
+  }, [])
+
+  async function handleLogout() {
+    try { await logout() } catch { /* ignore */ }
+    queryClient.clear()
+    setAuthed(false)
+  }
+
+  if (authed === null) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-slate-50 dark:bg-od-900">
+        <div className="w-8 h-8 border-2 border-blue-600 border-t-transparent rounded-full animate-spin" />
+      </div>
+    )
+  }
+
+  if (!authed) return <LoginPage onLogin={() => setAuthed(true)} />
+
   return (
     <QueryClientProvider client={queryClient}>
-      <AppInner />
+      <AppInner onLogout={handleLogout} />
     </QueryClientProvider>
   )
 }

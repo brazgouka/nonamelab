@@ -3,6 +3,7 @@ import { useMutation, useQuery } from '@tanstack/react-query'
 import { createTask, updateTask } from '../api/tasks'
 import { fetchTaskTypes } from '../api/taskTypes'
 import type { Task, DeleteScope } from '../types'
+import DatePicker from './DatePicker'
 
 interface Props {
   date: string
@@ -153,7 +154,7 @@ export default function TaskForm({ date, task, onClose, onSaved }: Props) {
           <div className="grid grid-cols-2 gap-3">
             <div>
               <label className="block text-xs font-semibold text-gray-400 dark:text-od-400 mb-1.5 uppercase tracking-wide">Date</label>
-              <input type="date" value={form.date} onChange={e => field('date', e.target.value)} required className={inputCls} />
+              <DatePicker value={form.date} onChange={d => field('date', d)} className={inputCls} />
             </div>
             <div>
               <label className="block text-xs font-semibold text-gray-400 dark:text-od-400 mb-1.5 uppercase tracking-wide">Time</label>
@@ -266,8 +267,8 @@ export default function TaskForm({ date, task, onClose, onSaved }: Props) {
               {form.recurrence !== 'none' && form.recurrence !== 'yearly' && (
                 <div className="mt-3">
                   <label className="block text-xs font-semibold text-gray-400 dark:text-od-400 mb-1.5 uppercase tracking-wide">End date</label>
-                  <input type="date" value={form.recurrence_end_date} min={form.date}
-                    onChange={e => field('recurrence_end_date', e.target.value)} className={inputCls} />
+                  <DatePicker value={form.recurrence_end_date} min={form.date}
+                    onChange={d => field('recurrence_end_date', d)} className={inputCls} />
                 </div>
               )}
             </div>

@@ -6,8 +6,12 @@ import StarterKit from '@tiptap/starter-kit'
 import TaskList from '@tiptap/extension-task-list'
 import TaskItem from '@tiptap/extension-task-item'
 import Placeholder from '@tiptap/extension-placeholder'
+import { TextStyle } from '@tiptap/extension-text-style'
+import { Color } from '@tiptap/extension-color'
+import Link from '@tiptap/extension-link'
 import { fetchNotes, createNote, updateNote, deleteNote } from '../api/notes'
 import type { Note } from '../types'
+import ColorDropdown from './ColorDropdown'
 
 function formatDate(iso: string): string {
   const d = new Date(iso)
@@ -18,6 +22,7 @@ function formatDate(iso: string): string {
   if (diff < 86400000) return `${Math.floor(diff / 3600000)}h ago`
   return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
 }
+
 
 function Divider() {
   return <div className="w-px h-4 bg-gray-200 dark:bg-od-600 mx-0.5 flex-shrink-0" />
@@ -47,6 +52,8 @@ function EditorPane({ note, onSaved, onDelete }: EditorPaneProps) {
   const [title, setTitle] = useState(note.title)
   const [saveStatus, setSaveStatus] = useState<'idle' | 'saving' | 'saved'>('idle')
   const [confirmDelete, setConfirmDelete] = useState(false)
+  const [linkUrl, setLinkUrl] = useState('')
+  const [showLinkInput, setShowLinkInput] = useState(false)
   const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const contentLoaded = useRef(false)
 
@@ -76,6 +83,9 @@ function EditorPane({ note, onSaved, onDelete }: EditorPaneProps) {
       TaskList,
       TaskItem.configure({ nested: true }),
       Placeholder.configure({ placeholder: 'Write something…' }),
+      TextStyle,
+      Color,
+      Link.configure({ openOnClick: false, HTMLAttributes: { target: '_blank', rel: 'noopener noreferrer' } }),
     ],
     content: '',
     onUpdate: ({ editor }) => {
@@ -94,6 +104,24 @@ function EditorPane({ note, onSaved, onDelete }: EditorPaneProps) {
   }, [editor])
 
   if (!editor) return null
+
+  function openLinkInput() {
+    setLinkUrl(editor!.getAttributes('link').href ?? '')
+    setShowLinkInput(true)
+  }
+
+  function applyLink() {
+    const url = linkUrl.trim()
+    if (url) editor!.chain().focus().setLink({ href: url }).run()
+    else editor!.chain().focus().unsetLink().run()
+    setShowLinkInput(false)
+    setLinkUrl('')
+  }
+
+  function cancelLink() {
+    setShowLinkInput(false)
+    setLinkUrl('')
+  }
 
   return (
     <div className="flex flex-col h-full overflow-hidden">
@@ -160,6 +188,42 @@ function EditorPane({ note, onSaved, onDelete }: EditorPaneProps) {
             Todo
           </span>
         </TBtn>
+        <Divider />
+        <ColorDropdown
+          activeColor={editor.getAttributes('textStyle').color ?? null}
+          onSelect={color => {
+            if (color) editor.chain().focus().setColor(color).run()
+            else editor.chain().focus().unsetColor().run()
+          }}
+        />
+        <Divider />
+        {showLinkInput ? (
+          <div className="flex items-center gap-1">
+            <input
+              value={linkUrl}
+              onChange={e => setLinkUrl(e.target.value)}
+              onKeyDown={e => {
+                if (e.key === 'Enter') { e.preventDefault(); applyLink() }
+                if (e.key === 'Escape') cancelLink()
+              }}
+              placeholder="https://…"
+              autoFocus
+              className="text-xs border border-gray-200 dark:border-od-600 rounded px-2 py-0.5 bg-white dark:bg-od-800 text-gray-700 dark:text-od-200 outline-none focus:ring-1 focus:ring-blue-400 w-44"
+            />
+            <button onMouseDown={e => { e.preventDefault(); applyLink() }}
+              className="text-xs px-2 py-0.5 bg-blue-500 text-white rounded hover:bg-blue-600">✓</button>
+            <button onMouseDown={e => { e.preventDefault(); cancelLink() }}
+              className="text-xs px-1.5 py-0.5 text-gray-400 hover:text-gray-600 dark:hover:text-od-200">✕</button>
+          </div>
+        ) : (
+          <TBtn active={editor.isActive('link')} title="Link"
+            onClick={() => editor.isActive('link') ? editor.chain().focus().unsetLink().run() : openLinkInput()}>
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
+              <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71" />
+              <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71" />
+            </svg>
+          </TBtn>
+        )}
       </div>
 
       <div className="flex-1 overflow-y-auto px-6 py-4 editor-content cursor-text bg-white dark:bg-od-800"

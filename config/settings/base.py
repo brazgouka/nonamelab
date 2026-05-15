@@ -21,6 +21,10 @@ INSTALLED_APPS = [
     'apps.telegram_bot',
 ]
 
+APP_PASSWORD = config('APP_PASSWORD')
+
+SESSION_COOKIE_AGE = 60 * 60 * 24 * 30  # 30 days
+
 TELEGRAM_BOT_TOKEN = config('TELEGRAM_BOT_TOKEN', default='')
 TELEGRAM_ALLOWED_USER_IDS = [
     int(uid)
@@ -35,6 +39,7 @@ MIDDLEWARE = [
     'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
     'django.contrib.auth.middleware.AuthenticationMiddleware',
+    'apps.planner.middleware.RequireAuthMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
 ]
